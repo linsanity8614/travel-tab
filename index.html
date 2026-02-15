@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TravelTab 旅費通 - Supabase 版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #F5F5F2; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .animate-zoom-in { animation: zoomIn 0.2s ease-out; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="module">
+        import React, { useState, useEffect, useMemo, useRef } from 'https://esm.sh/react@18.2.0';
+        import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+        import { 
+            Plus, Users, ArrowRight, Trash2, PieChart, List, DollarSign, Activity, Calendar, 
+            ArrowLeft, Receipt, Settings, Share2, Edit2, Link as LinkIcon, Check, X, Info, 
+            Image as ImageIcon, ExternalLink, FileText, Save, Globe, AlertCircle, Crown, 
+            AlertTriangle, History, Clock, MapPin, RefreshCw, Upload, Camera
+        } from 'https://esm.sh/lucide-react@0.263.1';
+        import { 
+            PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend 
+        } from 'https://esm.sh/recharts@2.7.2?deps=react@18.2.0,react-dom@18.2.0';
+
+        // --- 1. Supabase 設定區 ---
+        const SUPABASE_URL = 'https://yefoncvvbkrbonqvunzg.supabase.co'; //
+        const SUPABASE_KEY = 'sb_publishable_YfssF9q0n5qo436Aut4CmA_zyVhtRkx';    //
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- 2. 常數設定 (Morandi 色系與類別) ---
+        const MORANDI = { primary: '#6B8E78', primaryDark: '#4A6756', bg: '#F5F5F2', surface: '#FFFFFF', text: '#4A4A4A', textLight: '#8C8C8C', accent: '#E0A986', danger: '#EF4444', chartColors: ['#E0A986', '#8FB9A8', '#A69CAC', '#F2CF59', '#88B0C9', '#B5B5B5'] };
+        const CATEGORIES = [ { id: 'food', name: '飲食', color: '#E0A986' }, { id: 'transport', name: '交通', color: '#8FB9A8' }, { id: 'accommodation', name: '住宿', color: '#A69CAC' }, { id: 'ticket', name: '票券', color: '#F2CF59' }, { id: 'shopping', name: '購物', color: '#88B0C9' }, { id: 'other', name: '其他', color: '#B5B5B5' } ];
+        const CURRENCIES = [ { code: 'TWD', symbol: 'NT$', name: '台幣', rate: 1 }, { code: 'JPY', symbol: '¥', name: '日幣', rate: 0.215 }, { code: 'USD', symbol: '$', name: '美金', rate: 31.5 }, { code: 'KRW', symbol: '₩', name: '韓元', rate: 0.024 }, { code: 'EUR', symbol: '€', name: '歐元', rate: 34.2 } ];
+        const DEFAULT_AIRPLANE_IMG = 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=1000&auto=format&fit=crop';
+
+        // --- 3. 工具函數 ---
+        const formatMoney = (amount, currency = 'TWD') => new Intl.NumberFormat('zh-TW', { style: 'currency', currency, minimumFractionDigits: (currency==='TWD'||currency==='JPY')?0:2 }).format(amount);
+        const formatDate = (dateStr) => { if(!dateStr) return ''; const d = new Date(dateStr); return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`; };
+        
+        const resizeImageToBlob = (file) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX = 1000;
+                        let w = img.width, h = img.height;
+                        if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } }
+                        else { if (h > MAX) { w *= MAX / h; h = MAX; } }
+                        canvas.width = w; canvas.height = h;
+                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.7);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+
+        // --- 4. 主程式 ---
+        function App() {
+            const [view, setView] = useState('projects');
+            const [projects, setProjects] = useState([]);
+            const [currentProject, setCurrentProject] = useState(null);
+            const [expenses, setExpenses] = useState([]);
+            const [notes, setNotes] = useState({});
+            const [userId] = useState(localStorage.getItem('traveltab_user_id') || crypto.randomUUID());
+            const [toast, setToast] = useState(null);
+
+            useEffect(() => {
+                localStorage.setItem('traveltab_user_id', userId);
+                fetchProjects();
+                
+                // 即時監聽專案變更
+                const channel = supabase.channel('schema-db-changes')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, fetchProjects)
+                    .subscribe();
+
+                const params = new URLSearchParams(window.location.search);
+                const pid = params.get('pid');
+                if (pid) handleDeepLink(pid);
+
+                return () => supabase.removeChannel(channel);
+            }, []);
+
+            const fetchProjects = async () => {
+                const { data } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+                setProjects(data || []);
+            };
+
+            const handleDeepLink = async (pid) => {
+                const { data } = await supabase.from('projects').select('*').eq('id', pid).single();
+                if (data) { setCurrentProject(data); setView('dashboard'); window.history.replaceState({}, '', window.location.pathname); }
+            };
+
+            // 監聽花費與筆記
+            useEffect(() => {
+                if (!currentProject) return;
+                fetchExpenses();
+                fetchNotes();
+                const expChannel = supabase.channel(`exp-${currentProject.id}`)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses', filter: `project_id=eq.${currentProject.id}` }, fetchExpenses)
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'notes', filter: `project_id=eq.${currentProject.id}` }, fetchNotes)
+                    .subscribe();
+                return () => supabase.removeChannel(expChannel);
+            }, [currentProject]);
+
+            const fetchExpenses = async () => {
+                const { data } = await supabase.from('expenses').select('*').eq('project_id', currentProject.id).order('date', { ascending: false });
+                setExpenses(data || []);
+            };
+
+            const fetchNotes = async () => {
+                const { data } = await supabase.from('notes').select('*').eq('project_id', currentProject.id);
+                const noteMap = {};
+                data?.forEach(n => noteMap[n.member_id] = n.content);
+                setNotes(noteMap);
+            };
+
+            const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+
+            // Actions
+            const handleCreateProject = async (name, members, bg) => {
+                const mObjs = members.map(m => ({ id: crypto.randomUUID(), name: m }));
+                const { error } = await supabase.from('projects').insert([{ name, members: mObjs, background_image: bg, created_by: userId }]);
+                if (!error) showToast("建立成功！");
+            };
+
+            const handleAddExpense = async (data) => {
+                const { error } = await supabase.from('expenses').insert([{ ...data, project_id: currentProject.id, created_by: userId }]);
+                if (!error) showToast("已新增明細");
+            };
+
+            const handleSaveNote = async (mid, content) => {
+                const { error } = await supabase.from('notes').upsert({ project_id: currentProject.id, member_id: mid, content, updated_at: new Date() }, { onConflict: 'project_id,member_id' });
+                if (!error) showToast("筆記已儲存");
+            };
+
+            return React.createElement('div', null,
+                view === 'projects' ? 
+                React.createElement(ProjectListView, { projects, onCreate: handleCreateProject, onSelect: (p) => { setCurrentProject(p); setView('dashboard'); } }) :
+                React.createElement(ProjectDashboard, { project: currentProject, expenses, notes, onBack: () => setView('projects'), onAdd: handleAddExpense, onSaveNote: handleSaveNote, showToast, userId }),
+                
+                toast && React.createElement('div', { className: "fixed bottom-10 left-1/2 -translate-x-1/2 bg-stone-800 text-white px-6 py-3 rounded-full shadow-lg z-50 flex items-center gap-2 animate-zoom-in" }, 
+                    React.createElement(Check, { size: 18, className: "text-green-400" }), toast
+                )
+            );
+        }
+
+        // --- 視圖組件 (由 travelins/index.html 邏輯轉換) ---
+        // 因篇幅關係，此處整合 Dashboard 邏輯
+        function ProjectDashboard({ project, expenses, notes, onBack, onAdd, onSaveNote, showToast, userId }) {
+            const [activeTab, setActiveTab] = useState('overview');
+            const [showAdd, setShowAdd] = useState(false);
+            const myId = localStorage.getItem(`member_${project.id}`) || project.members[0].id;
+
+            // 結算邏輯 (Debts Calculation)
+            const debts = useMemo(() => {
+                const balances = {};
+                project.members.forEach(m => balances[m.id] = 0);
+                expenses.forEach(e => {
+                    balances[e.payer_id] += Number(e.amount);
+                    if (e.split_type === 'custom') {
+                        Object.entries(e.split_details || {}).forEach(([id, amt]) => balances[id] -= Number(amt));
+                    } else {
+                        const ids = e.involved_ids || [];
+                        ids.forEach(id => balances[id] -= (Number(e.amount) / ids.length));
+                    }
+                });
+                const d = [], c = [];
+                Object.entries(balances).forEach(([id, b]) => { if(b < -0.1) d.push({id, b}); if(b > 0.1) c.push({id, b}); });
+                const res = []; let i=0, j=0;
+                while(i < d.length && j < c.length) {
+                    const amt = Math.min(Math.abs(d[i].b), c[j].b);
+                    res.push({ from: d[i].id, to: c[j].id, amount: amt });
+                    d[i].b += amt; c[j].b -= amt;
+                    if(Math.abs(d[i].b) < 0.1) i++; if(c[j].b < 0.1) j++;
+                }
+                return res;
+            }, [expenses, project]);
+
+            return React.createElement('div', { className: "max-w-2xl mx-auto min-h-screen pb-20" },
+                // Header & Tabs... (此處省略部分 UI 刻劃，維持結構)
+                React.createElement('div', { className: "bg-white sticky top-0 z-10 p-4 border-b flex justify-between items-center" },
+                    React.createElement('button', { onClick: onBack }, React.createElement(ArrowLeft)),
+                    React.createElement('h2', { className: "font-bold" }, project.name),
+                    React.createElement('button', { onClick: () => setShowAdd(true), className: "bg-teal-700 text-white p-2 rounded-full" }, React.createElement(Plus))
+                ),
+                // 簡易 Tab 切換
+                React.createElement('div', { className: "flex justify-around bg-white text-sm border-b" },
+                    ['overview', 'expenses', 'settle'].map(t => React.createElement('button', { 
+                        key: t, onClick: () => setActiveTab(t), 
+                        className: `p-3 ${activeTab === t ? 'border-b-2 border-teal-700 font-bold' : ''}` 
+                    }, t === 'overview' ? '總覽' : t === 'expenses' ? '明細' : '結算'))
+                ),
+                // 內容區
+                activeTab === 'settle' && React.createElement('div', { className: "p-4 space-y-3" },
+                    debts.map((debt, idx) => React.createElement('div', { key: idx, className: "bg-white p-4 rounded-xl shadow-sm flex justify-between" },
+                        React.createElement('span', null, project.members.find(m=>m.id===debt.from).name, " ➡ ", project.members.find(m=>m.id===debt.to).name),
+                        React.createElement('span', { className: "font-bold text-teal-700" }, formatMoney(debt.amount))
+                    ))
+                ),
+                // 新增視窗
+                showAdd && React.createElement(AddExpenseModal, { project, onClose: () => setShowAdd(false), onConfirm: onAdd })
+            );
+        }
+
+        // --- Supabase Storage 圖片上傳組件 ---
+        function AddExpenseModal({ project, onClose, onConfirm }) {
+            const [title, setTitle] = useState('');
+            const [amount, setAmount] = useState('');
+            const [uploading, setUploading] = useState(false);
+            const [imgUrl, setImgUrl] = useState('');
+
+            const handleUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setUploading(true);
+                const blob = await resizeImageToBlob(file);
+                const fileName = `receipt_${Date.now()}.jpg`;
+                const { data, error } = await supabase.storage.from('receipts').upload(fileName, blob); //
+                if (!error) {
+                    const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+                    setImgUrl(publicUrl);
+                }
+                setUploading(false);
+            };
+
+            return React.createElement('div', { className: "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" },
+                React.createElement('div', { className: "bg-white p-6 rounded-2xl w-full max-w-md space-y-4" },
+                    React.createElement('input', { placeholder: "名稱", className: "w-full border p-2", onChange: e=>setTitle(e.target.value) }),
+                    React.createElement('input', { placeholder: "金額", type: "number", className: "w-full border p-2", onChange: e=>setAmount(e.target.value) }),
+                    React.createElement('label', { className: "block border-2 border-dashed p-4 text-center cursor-pointer" },
+                        uploading ? "上傳中..." : imgUrl ? "✅ 已加入照片" : "📷 上傳收據照片",
+                        React.createElement('input', { type: "file", className: "hidden", onChange: handleUpload })
+                    ),
+                    React.createElement('button', { 
+                        className: "w-full bg-teal-700 text-white p-3 rounded-xl font-bold",
+                        onClick: () => onConfirm({ title, amount: Number(amount), category_id: 'food', payer_id: project.members[0].id, date: new Date(), attachments: imgUrl ? [{type:'image', url: imgUrl}] : [] })
+                    }, "儲存")
+                )
+            );
+        }
+
+        function ProjectListView({ projects, onCreate, onSelect }) {
+            return React.createElement('div', { className: "p-6 max-w-2xl mx-auto" },
+                React.createElement('h1', { className: "text-2xl font-bold mb-6" }, "TravelTab 旅費通"),
+                projects.map(p => React.createElement('div', { 
+                    key: p.id, onClick: () => onSelect(p),
+                    className: "bg-white p-4 rounded-xl mb-3 shadow-sm cursor-pointer"
+                }, p.name))
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+    </script>
+</body>
+</html>
