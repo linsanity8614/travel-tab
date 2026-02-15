@@ -30,23 +30,45 @@
             PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend 
         } from 'https://esm.sh/recharts@2.7.2?deps=react@18.2.0,react-dom@18.2.0';
 
-        // --- 1. Supabase 設定 (已填入您的資訊) ---
+        // --- 1. Supabase 設定 ---
         const SUPABASE_URL = 'https://yefoncvvbkrbonqvunzg.supabase.co'; 
         const SUPABASE_KEY = 'sb_publishable_YfssF9q0n5qo436Aut4CmA_zyVhtRkx'; 
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // --- 2. 常數與工具 ---
         const MORANDI = { primary: '#6B8E78', primaryDark: '#4A6756', bg: '#F5F5F2', surface: '#FFFFFF', text: '#4A4A4A', accent: '#E0A986', chartColors: ['#E0A986', '#8FB9A8', '#A69CAC', '#F2CF59', '#88B0C9', '#B5B5B5'] };
         const CATEGORIES = [ { id: 'food', name: '飲食', color: '#E0A986' }, { id: 'transport', name: '交通', color: '#8FB9A8' }, { id: 'accommodation', name: '住宿', color: '#A69CAC' }, { id: 'ticket', name: '票券', color: '#F2CF59' }, { id: 'shopping', name: '購物', color: '#88B0C9' }, { id: 'other', name: '其他', color: '#B5B5B5' } ];
         const DEFAULT_AIRPLANE_IMG = 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=1000&auto=format&fit=crop';
 
         const formatMoney = (amount) => new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', minimumFractionDigits: 0 }).format(amount);
         const formatDate = (dateStr) => { if(!dateStr) return ''; const d = new Date(dateStr); return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`; };
+        
+        const resizeImageToBlob = (file) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX = 1000;
+                        let w = img.width, h = img.height;
+                        if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } }
+                        else { if (h > MAX) { w *= MAX / h; h = MAX; } }
+                        canvas.width = w; canvas.height = h;
+                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.7);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        };
 
+        // --- 3. 主程式 ---
         function App() {
             const [view, setView] = useState('projects');
             const [projects, setProjects] = useState([]);
             const [currentProject, setCurrentProject] = useState(null);
-            const [expenses, setExpenses] = useState([]);
             const [userId] = useState(localStorage.getItem('traveltab_user_id') || crypto.randomUUID());
             const [toast, setToast] = useState(null);
 
@@ -78,20 +100,32 @@
             return React.createElement('div', null,
                 view === 'projects' ? 
                 React.createElement(ProjectListView, { projects, onCreate: handleCreateProject, onSelect: (p) => { setCurrentProject(p); setView('dashboard'); } }) :
-                React.createElement(ProjectDashboard, { project: currentProject, expenses, onBack: () => setView('projects'), onAdd: handleAddExpense, showToast }),
+                React.createElement(ProjectDashboard, { project: currentProject, onBack: () => setView('projects'), onAdd: handleAddExpense, showToast }),
                 toast && React.createElement('div', { className: "fixed bottom-10 left-1/2 -translate-x-1/2 bg-stone-800 text-white px-6 py-3 rounded-full shadow-lg z-50 flex items-center gap-2 animate-zoom-in" }, 
                     React.createElement(Check, { size: 18, className: "text-green-400" }), toast
                 )
             );
         }
 
+        // --- 4. 視圖組件 ---
+
         function ProjectListView({ projects, onCreate, onSelect }) {
             const [showModal, setShowModal] = useState(false);
-            return React.createElement('div', { className: "max-w-4xl mx-auto p-6 pt-12 text-center" },
-                React.createElement('h1', { className: "text-3xl font-bold mb-8 flex items-center justify-center gap-2" }, React.createElement(Activity, { className: "text-teal-700" }), "TravelTab 旅費通"),
-                React.createElement('button', { onClick: () => setShowModal(true), className: "mb-8 bg-teal-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg" }, "+ 新增行程"),
-                React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6" },
-                    projects.map(p => React.createElement('div', { key: p.id, onClick: () => onSelect(p), className: "bg-white p-6 rounded-2xl shadow-md cursor-pointer hover:shadow-xl transition-all border border-stone-200" }, React.createElement('h3', { className: "font-bold text-xl" }, p.name)))
+            return React.createElement('div', { className: "max-w-4xl mx-auto p-6 pt-12" },
+                React.createElement('div', { className: "flex justify-between items-center mb-8" },
+                    React.createElement('h1', { className: "text-3xl font-bold flex items-center gap-2 text-stone-700" }, React.createElement(Activity, { className: "text-teal-700" }), "TravelTab 旅費通"),
+                    React.createElement('button', { onClick: () => setShowModal(true), className: "bg-teal-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" }, React.createElement(Plus, { size: 20 }), "新增行程")
+                ),
+                projects.length === 0 ? 
+                React.createElement('div', { className: "text-center py-20 opacity-50" }, React.createElement(Calendar, { size: 64, className: "mx-auto mb-4 text-stone-300" }), React.createElement('p', null, "目前沒有行程，建立一個吧！")) :
+                React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" },
+                    projects.map(p => React.createElement('div', { key: p.id, onClick: () => onSelect(p), className: "relative h-48 rounded-2xl overflow-hidden shadow-md cursor-pointer group hover:shadow-xl transition-all" },
+                        React.createElement('img', { src: p.background_image || DEFAULT_AIRPLANE_IMG, className: "absolute inset-0 w-full h-full object-cover" }),
+                        React.createElement('div', { className: "absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors p-5 flex flex-col justify-between text-white" },
+                            React.createElement('h3', { className: "font-bold text-xl" }, p.name),
+                            React.createElement('div', { className: "flex items-center gap-1 text-sm opacity-90" }, React.createElement(Users, { size: 14 }), p.members?.length || 0, " 人")
+                        )
+                    ))
                 ),
                 showModal && React.createElement(CreateProjectModal, { onClose: () => setShowModal(false), onSubmit: onCreate })
             );
@@ -146,7 +180,7 @@
                 React.createElement('div', { className: "bg-white sticky top-0 z-10 p-4 border-b flex justify-between items-center" },
                     React.createElement('button', { onClick: onBack }, React.createElement(ArrowLeft)),
                     React.createElement('h2', { className: "font-bold" }, project.name),
-                    React.createElement('button', { onClick: () => setShowAdd(true), className: "bg-teal-700 text-white p-2 rounded-full" }, React.createElement(Plus))
+                    React.createElement('button', { onClick: () => setShowAdd(true), className: "bg-teal-700 text-white p-2 rounded-full shadow-lg" }, React.createElement(Plus))
                 ),
                 React.createElement('div', { className: "flex justify-around bg-white text-sm border-b" },
                     ['overview', 'expenses', 'settle'].map(t => React.createElement('button', { key: t, onClick: () => setActiveTab(t), className: `p-3 ${activeTab === t ? 'border-b-2 border-teal-700 font-bold' : ''}` }, t === 'overview' ? '總覽' : t === 'expenses' ? '明細' : '結算'))
@@ -157,11 +191,32 @@
                 ),
                 activeTab === 'settle' && React.createElement('div', { className: "p-4 space-y-3" },
                     debts.map((debt, idx) => React.createElement('div', { key: idx, className: "bg-white p-4 rounded-xl shadow-sm flex justify-between" },
-                        React.createElement('span', null, project.members.find(m=>m.id===debt.from).name, " ➡ ", project.members.find(m=>m.id===debt.to).name),
+                        React.createElement('span', null, project.members.find(m=>m.id===debt.from)?.name || '未知', " ➡ ", project.members.find(m=>m.id===debt.to)?.name || '未知'),
                         React.createElement('span', { className: "font-bold text-teal-700" }, formatMoney(debt.amount))
                     ))
                 ),
                 showAdd && React.createElement(AddExpenseModal, { project, onClose: () => setShowAdd(false), onConfirm: onAdd })
+            );
+        }
+
+        // --- 5. 缺失的組件 (已補齊) ---
+
+        function CreateProjectModal({ onClose, onSubmit }) {
+            const [name, setName] = useState('');
+            const [members, setMembers] = useState(['', '']);
+            return React.createElement('div', { className: "fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" },
+                React.createElement('div', { className: "bg-white p-6 rounded-2xl w-full max-w-md animate-zoom-in" },
+                    React.createElement('h2', { className: "text-xl font-bold mb-4" }, "建立新行程"),
+                    React.createElement('input', { placeholder: "行程名稱", className: "w-full border p-2 mb-4 rounded-lg", onChange: e=>setName(e.target.value) }),
+                    React.createElement('div', { className: "max-h-40 overflow-y-auto mb-2" },
+                        members.map((m, i) => React.createElement('input', { key: i, placeholder: `成員 ${i+1} (第一位為主辦人)`, value: m, className: "w-full border p-2 mb-2 rounded-lg", onChange: e=>{const nm=[...members];nm[i]=e.target.value;setMembers(nm);}}))
+                    ),
+                    React.createElement('button', { onClick: () => setMembers([...members, '']), className: "text-teal-700 text-sm mb-4 font-bold" }, "+ 增加成員"),
+                    React.createElement('div', { className: "flex justify-end gap-2" },
+                        React.createElement('button', { onClick: onClose, className: "px-4 py-2 text-stone-500" }, "取消"),
+                        React.createElement('button', { onClick: () => { onSubmit(name, members.filter(m=>m.trim()), DEFAULT_AIRPLANE_IMG); onClose(); }, className: "bg-teal-700 text-white px-4 py-2 rounded-lg" }, "建立")
+                    )
+                )
             );
         }
 
@@ -185,47 +240,73 @@
             );
         }
 
-        function CreateProjectModal({ onClose, onSubmit }) {
-            const [name, setName] = useState('');
-            const [members, setMembers] = useState(['', '']);
-            return React.createElement('div', { className: "fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" },
-                React.createElement('div', { className: "bg-white p-6 rounded-2xl w-full max-w-md animate-zoom-in" },
-                    React.createElement('h2', { className: "text-xl font-bold mb-4" }, "建立新行程"),
-                    React.createElement('input', { placeholder: "行程名稱", className: "w-full border p-2 mb-4", onChange: e=>setName(e.target.value) }),
-                    members.map((m, i) => React.createElement('input', { key: i, placeholder: `成員 ${i+1}`, className: "w-full border p-2 mb-2", onChange: e=>{const nm=[...members];nm[i]=e.target.value;setMembers(nm);}})),
-                    React.createElement('button', { onClick: () => setMembers([...members, '']), className: "text-teal-700 text-sm mb-4" }, "+ 增加成員"),
-                    React.createElement('div', { className: "flex justify-end gap-2" },
-                        React.createElement('button', { onClick: onClose, className: "px-4 py-2" }, "取消"),
-                        React.createElement('button', { onClick: () => { onSubmit(name, members.filter(m=>m), DEFAULT_AIRPLANE_IMG); onClose(); }, className: "bg-teal-700 text-white px-4 py-2 rounded-lg" }, "建立")
-                    )
-                )
-            );
-        }
-
         function AddExpenseModal({ project, onClose, onConfirm }) {
             const [title, setTitle] = useState('');
             const [amount, setAmount] = useState('');
+            const [cat, setCat] = useState('food');
             const [payerId, setPayerId] = useState(project.members[0].id);
+            const [uploading, setUploading] = useState(false);
+            const [imgUrl, setImgUrl] = useState('');
+
+            const handleUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setUploading(true);
+                const blob = await resizeImageToBlob(file);
+                const fileName = `receipt_${Date.now()}.jpg`;
+                const { data, error } = await supabase.storage.from('receipts').upload(fileName, blob);
+                if (!error) {
+                    const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+                    setImgUrl(publicUrl);
+                }
+                setUploading(false);
+            };
+
             return React.createElement('div', { className: "fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" },
-                React.createElement('div', { className: "bg-white p-6 rounded-2xl w-full max-w-md" },
+                React.createElement('div', { className: "bg-white p-6 rounded-2xl w-full max-w-md animate-zoom-in max-h-[90vh] overflow-y-auto" },
                     React.createElement('h2', { className: "text-xl font-bold mb-4" }, "記一筆"),
-                    React.createElement('input', { placeholder: "名稱", className: "w-full border p-2 mb-4", onChange: e=>setTitle(e.target.value) }),
-                    React.createElement('input', { placeholder: "金額", type: "number", className: "w-full border p-2 mb-4", onChange: e=>setAmount(e.target.value) }),
-                    React.createElement('select', { className: "w-full border p-2 mb-6", onChange: e=>setPayerId(e.target.value) }, 
-                        project.members.map(m => React.createElement('option', { key: m.id, value: m.id }, m.name))
+                    React.createElement('input', { placeholder: "項目名稱", className: "w-full border p-2 mb-4 rounded-lg", onChange: e=>setTitle(e.target.value) }),
+                    React.createElement('input', { placeholder: "金額", type: "number", className: "w-full border p-2 mb-4 rounded-lg", onChange: e=>setAmount(e.target.value) }),
+                    React.createElement('div', { className: "mb-4" },
+                        React.createElement('label', { className: "text-xs text-stone-500 mb-1 block" }, "分類"),
+                        React.createElement('div', { className: "flex gap-2 overflow-x-auto pb-2" },
+                            CATEGORIES.map(c => React.createElement('button', { key: c.id, onClick: ()=>setCat(c.id), className: `p-2 rounded-lg border text-sm whitespace-nowrap ${cat===c.id ? 'bg-teal-50 border-teal-500 text-teal-700' : 'border-stone-200'}` }, c.name))
+                        )
+                    ),
+                    React.createElement('div', { className: "mb-4" },
+                        React.createElement('label', { className: "text-xs text-stone-500 mb-1 block" }, "誰先付的？"),
+                        React.createElement('select', { className: "w-full border p-2 rounded-lg", value: payerId, onChange: e=>setPayerId(e.target.value) }, 
+                            project.members.map(m => React.createElement('option', { key: m.id, value: m.id }, m.name))
+                        )
+                    ),
+                    React.createElement('label', { className: "block border-2 border-dashed border-stone-300 p-4 text-center cursor-pointer rounded-lg hover:bg-stone-50 mb-6" },
+                        uploading ? React.createElement(RefreshCw, { className: "animate-spin mx-auto text-stone-400" }) : imgUrl ? React.createElement("div", { className: "text-teal-600 flex items-center justify-center gap-2" }, React.createElement(Check, { size: 16 }), "圖片已上傳") : React.createElement("div", { className: "text-stone-400 flex items-center justify-center gap-2" }, React.createElement(Camera, { size: 16 }), "上傳收據"),
+                        React.createElement('input', { type: "file", className: "hidden", onChange: handleUpload, disabled: uploading })
                     ),
                     React.createElement('div', { className: "flex justify-end gap-2" },
-                        React.createElement('button', { onClick: onClose, className: "px-4 py-2" }, "取消"),
-                        React.createElement('button', { onClick: () => { onConfirm({ title, amount: Number(amount), category_id: 'food', payer_id: payerId, date: new Date().toISOString() }); onClose(); }, className: "bg-teal-700 text-white px-4 py-2 rounded-lg" }, "儲存")
+                        React.createElement('button', { onClick: onClose, className: "px-4 py-2 text-stone-500" }, "取消"),
+                        React.createElement('button', { onClick: () => { onConfirm({ title, amount: Number(amount), category_id: cat, payer_id: payerId, date: new Date().toISOString(), attachments: imgUrl ? [{type:'image', url: imgUrl}] : [] }); onClose(); }, className: "bg-teal-700 text-white px-4 py-2 rounded-lg font-bold" }, "儲存")
                     )
                 )
             );
         }
 
         function ExpenseItem({ expense, project }) {
-            return React.createElement('div', { className: "bg-white p-4 rounded-xl shadow-sm flex justify-between" },
-                React.createElement('div', null, React.createElement('h4', { className: "font-bold" }, expense.title), React.createElement('p', { className: "text-xs text-stone-500" }, formatDate(expense.date))),
-                React.createElement('span', { className: "font-bold" }, formatMoney(expense.amount))
+            const cat = CATEGORIES.find(c => c.id === expense.category_id) || CATEGORIES[5];
+            const payer = project.members.find(m => m.id === expense.payer_id)?.name || '未知';
+            return React.createElement('div', { className: "bg-white p-4 rounded-xl shadow-sm flex justify-between items-center" },
+                React.createElement('div', { className: "flex items-center gap-3" },
+                    React.createElement('div', { className: "w-10 h-10 rounded-full flex items-center justify-center text-white text-lg", style: { backgroundColor: cat.color } }, cat.name[0]),
+                    React.createElement('div', null, 
+                        React.createElement('h4', { className: "font-bold text-stone-800" }, expense.title), 
+                        React.createElement('div', { className: "flex items-center gap-2 text-xs text-stone-500" },
+                            React.createElement('span', null, payer, " 先付"),
+                            React.createElement('span', null, formatDate(expense.date)),
+                            expense.attachments?.length > 0 && React.createElement(ImageIcon, { size: 12, className: "text-blue-500" })
+                        )
+                    )
+                ),
+                React.createElement('span', { className: "font-bold text-stone-700" }, formatMoney(expense.amount))
             );
         }
 
