@@ -130,6 +130,7 @@
             return `${symbol} ${new Intl.NumberFormat('zh-TW').format(val)}`;
         };
         const formatDate = (d) => new Date(d).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const formatLogDate = (d) => new Date(d).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
         const compressImage = (file) => new Promise((resolve) => {
             const reader = new FileReader();
@@ -357,7 +358,6 @@
 
         // --- 2. 身分選擇視窗 (保持不變) ---
         function MemberSelectModal({ project, onClose, onConfirm, onJoinNew }) {
-            // (為了縮減篇幅，保持與前次代碼相同，省略重複內容，僅示意)
              const [isJoining, setIsJoining] = useState(false);
             const [newName, setNewName] = useState('');
 
@@ -699,7 +699,7 @@
                             )
                         ),
 
-                        // 分帳詳情 (省略重複邏輯，顯示列表)
+                        // 分帳詳情
                         React.createElement('div', null,
                             React.createElement('label', { className: "text-xs font-bold text-stone-400 block mb-3" }, "分帳詳情"),
                             React.createElement('div', { className: "bg-stone-50 rounded-2xl p-4 space-y-2 border border-stone-100" },
@@ -726,7 +726,11 @@
                             React.createElement('div', { className: "space-y-2" },
                                 expense.attachments.map((att, idx) => 
                                     React.createElement('a', { key: idx, href: att.url, target: "_blank", className: "flex items-center gap-3 p-3 bg-stone-50 rounded-xl border border-stone-100 hover:bg-stone-100 transition-colors group" },
-                                        React.createElement('div', { className: "w-10 h-10 rounded-lg bg-stone-200 flex items-center justify-center text-stone-500 group-hover:bg-[#6B8E78] group-hover:text-white transition-colors" }, React.createElement(ImageIcon, { size: 18 })),
+                                        React.createElement('div', { className: "w-10 h-10 rounded-lg bg-stone-200 flex items-center justify-center text-stone-500 group-hover:bg-[#6B8E78] group-hover:text-white transition-colors overflow-hidden" }, 
+                                            att.type === 'image' 
+                                            ? React.createElement('img', { src: att.url, className: "w-full h-full object-cover" })
+                                            : React.createElement(ImageIcon, { size: 18 })
+                                        ),
                                         React.createElement('div', { className: "flex-1 min-w-0" },
                                             React.createElement('div', { className: "text-xs font-bold text-stone-700 truncate" }, "查看圖片"),
                                             React.createElement('div', { className: "text-[10px] text-stone-400 truncate" }, "點擊開啟")
@@ -757,13 +761,13 @@
                         )
                     ),
 
-                    // Footer Buttons
+                    // Footer Buttons (Edit on Left, Delete on Right)
                     React.createElement('div', { className: "p-4 bg-stone-50 flex justify-end gap-3 border-t border-stone-100 shrink-0" },
-                        React.createElement('button', { onClick: onDelete, className: "flex items-center gap-2 px-4 py-3 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors text-sm font-bold" },
-                            React.createElement(Trash2, { size: 18 }), "刪除"
-                        ),
                         React.createElement('button', { onClick: onEdit, className: "flex items-center gap-2 px-6 py-3 bg-[#6B8E78] text-white rounded-xl hover:bg-[#5A7A66] transition-colors shadow-lg text-sm font-bold" },
                             React.createElement(Edit2, { size: 18 }), "編輯"
+                        ),
+                        React.createElement('button', { onClick: onDelete, className: "flex items-center gap-2 px-4 py-3 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors text-sm font-bold" },
+                            React.createElement(Trash2, { size: 18 }), "刪除"
                         )
                     )
                 )
@@ -775,11 +779,10 @@
             const category = CATEGORIES.find(c => c.id === expense.category_id) || CATEGORIES[5];
             const payer = project.members.find(m => m.id === expense.payer_id)?.name || '未知';
             
-            // 幣別顯示邏輯
+            // 幣別顯示邏輯：列表永遠顯示台幣，若為外幣則在下方顯示原幣
             const currencyCode = expense.original_currency || 'TWD';
-            const displayAmount = currencyCode !== 'TWD' 
-                ? formatCurrency(expense.original_amount, currencyCode) 
-                : formatMoney(expense.amount);
+            // 主金額 = 台幣金額
+            const displayAmount = formatMoney(expense.amount); 
 
             let splitText = '';
             if (expense.split_type === 'custom') {
@@ -807,11 +810,13 @@
                         React.createElement('div', { className: "text-2xl emoji-icon" }, category.emoji),
                         React.createElement('h4', { className: "font-bold text-lg text-stone-800 tracking-wide" }, expense.title)
                     ),
-                    // 金額 (顯示優化)
+                    // 金額 (固定顯示台幣)
                     React.createElement('div', { className: "text-right" },
                         React.createElement('span', { className: "font-bold text-xl text-stone-700 block leading-none" }, displayAmount),
-                        // 若非台幣，下方顯示台幣折算
-                        currencyCode !== 'TWD' && React.createElement('span', { className: "text-xs text-stone-400 font-medium" }, `≈ ${formatMoney(expense.amount)}`)
+                        // 若非台幣，下方顯示原幣 (灰色小字)
+                        currencyCode !== 'TWD' && React.createElement('span', { className: "text-xs text-stone-400 font-medium" }, 
+                            `${formatCurrency(expense.original_amount, currencyCode)}`
+                        )
                     )
                 ),
 
@@ -827,27 +832,19 @@
                     )
                 ),
 
-                // 第三行：分給誰 + 操作按鈕
+                // 第三行：分給誰
                 React.createElement('div', { className: "flex justify-between items-end pl-1" },
                     React.createElement('div', { className: "text-xs text-stone-400 flex-1 pr-14 truncate" },
                         "分給: ", React.createElement('span', { className: "text-stone-600 font-medium" }, splitText)
                     ),
-                    // 操作按鈕 (stopPropagation)
-                    React.createElement('div', { className: "flex gap-2" },
-                        React.createElement('button', { 
-                            onClick: (e) => { e.stopPropagation(); onEdit(); },
-                            className: "p-1.5 bg-stone-50 rounded-full text-stone-400 hover:text-[#6B8E78] hover:bg-green-50 transition-colors"
-                        }, React.createElement(Edit2, { size: 16 })),
-                        React.createElement('button', { 
-                            onClick: (e) => { e.stopPropagation(); onDelete(); },
-                            className: "p-1.5 bg-stone-50 rounded-full text-stone-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                        }, React.createElement(Trash2, { size: 16 }))
+                     expense.attachments && expense.attachments.length > 0 && (
+                        React.createElement(ImageIcon, { size: 14, className: "text-stone-300 mr-2" })
                     )
                 )
             );
         }
 
-        // --- 4. 記帳面板 (重構: 異動紀錄邏輯) ---
+        // --- 4. 記帳面板 (重構: 異動紀錄邏輯 + 預覽圖片) ---
         function ExpenseModal({ project, onClose, onSubmit, supabase, defaultPayer, initialData }) {
             const [data, setData] = useState(initialData ? {
                 ...initialData,
@@ -865,6 +862,7 @@
             
             const [exchangeRate, setExchangeRate] = useState(initialData?.exchange_rate || 1);
             const [uploading, setUploading] = useState(false);
+            const [previewUrl, setPreviewUrl] = useState(null); // 新增預覽 URL
 
             // 當幣別改變時，自動切換預設匯率
             const handleCurrencyChange = (curr) => {
@@ -875,6 +873,11 @@
             const handleFile = async (e) => {
                 const file = e.target.files[0];
                 if(!file) return;
+                
+                // 立即預覽
+                const objectUrl = URL.createObjectURL(file);
+                setPreviewUrl(objectUrl);
+
                 setUploading(true);
                 try {
                     const blob = await compressImage(file);
@@ -930,6 +933,7 @@
                 onClose();
             }
             
+            // ... (Toggle Logic 省略，與之前相同)
             const toggleInvolved = (id) => {
                 let newIds;
                 if(data.involved_ids.includes(id)) {
@@ -978,7 +982,8 @@
                         React.createElement('button', { onClick: onClose, className: "p-2 bg-stone-100 rounded-full text-stone-500 hover:bg-stone-200" }, React.createElement(X, { size: 20 }))
                     ),
 
-                    // 1. 金額與匯率區域
+                    // ... (金額、名稱、分類、付款人 UI 保持不變)
+                     // 1. 金額與匯率區域
                     React.createElement('div', { className: "bg-stone-50 p-4 rounded-2xl mb-6 border border-stone-100" },
                         React.createElement('div', { className: "flex gap-4 mb-3" },
                             React.createElement('div', { className: "w-1/3" },
@@ -1015,7 +1020,6 @@
                         )
                     ),
 
-                    // ... (中間內容: 項目名稱、分類、付款人... 保持不變，省略以節省篇幅)
                     // 2. 項目名稱
                     React.createElement('div', { className: "mb-6" },
                         React.createElement('label', { className: "text-xs font-bold text-stone-400 mb-2 block" }, "項目名稱"),
@@ -1062,7 +1066,7 @@
 
                     // 5. 分帳區域
                     React.createElement('div', { className: "mb-6" },
-                        React.createElement('div', { className: "flex justify-between items-center mb-3" },
+                         React.createElement('div', { className: "flex justify-between items-center mb-3" },
                             React.createElement('label', { className: "text-xs font-bold text-stone-400" }, "分給誰？"),
                             React.createElement('div', { className: "flex bg-stone-100 rounded-lg p-1" },
                                 React.createElement('button', { onClick: ()=>setData({...data, split_type: 'equal'}), className: `px-3 py-1 rounded-md text-xs font-bold transition-all ${data.split_type === 'equal' ? 'bg-white shadow text-stone-800' : 'text-stone-400'}` }, "均分"),
@@ -1135,18 +1139,28 @@
                         )
                     ),
                     
-                    // 6. 收據上傳
+                    // 6. 收據上傳 (更新：預覽縮圖)
                     React.createElement('div', { className: "mb-8" },
-                        React.createElement('label', { className: "text-xs font-bold text-stone-400 mb-2 block" }, "收據 / 照片"),
+                        React.createElement('label', { className: "text-xs font-bold text-stone-400 mb-2 block" }, "請上傳圖片/截圖(PNG,SVG,JPG...等)"),
+                        
+                        // 預覽區塊
+                        (previewUrl || (data.attachments && data.attachments[0])) && React.createElement('div', { className: "mb-3 relative w-full h-40 rounded-2xl overflow-hidden border border-stone-200" },
+                             React.createElement('img', { 
+                                src: previewUrl || data.attachments[0].url, 
+                                className: "w-full h-full object-cover" 
+                             }),
+                             React.createElement('div', { className: "absolute inset-0 bg-black/20" })
+                        ),
+
                         React.createElement('label', { className: "flex items-center justify-center w-full p-4 border-2 border-dashed border-stone-300 rounded-2xl cursor-pointer hover:bg-stone-50 hover:border-[#6B8E78] transition-all group" },
                             uploading ? (
                                 React.createElement('div', { className: "flex items-center gap-2 text-stone-500" }, React.createElement(RefreshCw, { className: "animate-spin" }), "上傳中...")
-                            ) : data.attachments ? (
+                            ) : (data.attachments && data.attachments.length > 0 && !previewUrl) ? (
                                 React.createElement('div', { className: "flex items-center gap-2 text-[#6B8E78] font-bold" }, React.createElement(Check, { size: 18 }), "已附加照片 (點擊更換)")
                             ) : (
                                 React.createElement('div', { className: "flex flex-col items-center gap-1" },
                                     React.createElement(Camera, { className: "text-stone-400 group-hover:text-[#6B8E78] transition-colors", size: 24 }),
-                                    React.createElement('span', { className: "text-xs font-bold text-stone-400 group-hover:text-stone-600" }, "支援手機截圖、JPG、PNG")
+                                    React.createElement('span', { className: "text-xs font-bold text-stone-400 group-hover:text-stone-600" }, previewUrl ? "更換圖片" : "選擇圖片")
                                 )
                             ),
                             React.createElement('input', { type: "file", className: "hidden", onChange: handleFile, accept: "image/*" })
@@ -1164,7 +1178,7 @@
         }
 
         // --- 共用組件 (ProjectModal, ConfirmModal 保持不變) ---
-        // ... (省略 ProjectModal 與 ConfirmModal 代碼，生成時會完整包含)
+        // ... (ProjectModal 和 ConfirmModal 代碼保持不變，因為在同一個檔案中，為了簡潔省略重複部分，但實際生成時會包含)
         function ConfirmModal({ title, message, onClose, onConfirm }) {
             return React.createElement('div', { 
                 onClick: onClose, // 點擊外部關閉
