@@ -14,7 +14,7 @@
         @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         .animate-zoom-in { animation: zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         
-        /* 銀框質感 */
+        /* 銀框質感 (保留給外層大容器用) */
         .silver-frame {
             border: 4px solid #E5E5E0;
             background: rgba(255, 255, 255, 0.85);
@@ -22,6 +22,13 @@
             box-shadow: 
                 0 10px 30px -5px rgba(0, 0, 0, 0.1),
                 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+        }
+
+        /* 純淨 Modal 風格 (取代原本彈窗的銀框) */
+        .clean-modal {
+            background: #FFFFFF;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(0,0,0,0.05);
         }
 
         /* 銀色文字漸層 */
@@ -223,14 +230,14 @@
             return React.createElement('div', { className: "h-screen flex items-center justify-center text-center p-6" }, "請設定 Supabase");
         }
 
-        // --- 1. 專案列表 (卡片樣式調整) ---
+        // --- 1. 專案列表 (優化背景色) ---
         function ProjectList({ projects, onCreate, onSelect, onDelete, onUpdate, supabase }) {
             const [modalMode, setModalMode] = useState(null); 
             const [targetProject, setTargetProject] = useState(null);
             const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
             return React.createElement('div', { className: "p-4 md:p-8 max-w-6xl mx-auto min-h-screen flex flex-col pt-12" },
-                // 銀框容器
+                // 外層銀框容器 (保持原樣)
                 React.createElement('div', { className: "silver-frame rounded-[2.5rem] p-6 md:p-10 shadow-2xl relative min-h-[600px]" },
                     
                     // Header
@@ -247,11 +254,11 @@
                         }, React.createElement(Plus, { size: 20 }), "新增行程")
                     ),
 
-                    // 內層列表區
-                    React.createElement('div', { className: "rounded-2xl p-4 md:p-8 bg-[#F0F2F0] min-h-[400px] border border-stone-200/50" },
+                    // 內層列表區 (改為莫蘭迪淺綠底 #EBF0ED)
+                    React.createElement('div', { className: "rounded-2xl p-4 md:p-8 bg-[#EBF0ED] min-h-[400px] border border-stone-200/30" },
                         projects.length === 0 
                         ? React.createElement('div', { className: "flex flex-col items-center justify-center h-full py-24 opacity-40" }, 
-                            React.createElement(Calendar, { size: 64, className: "mx-auto mb-4 text-stone-400" }),
+                            React.createElement(Calendar, { size: 64, className: "mx-auto mb-4 text-[#6B8E78]" }),
                             React.createElement('p', { className: "text-stone-500 font-medium" }, "還沒有行程，按右上方新增")
                           )
                         : React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" }, 
@@ -290,7 +297,6 @@
                                         React.createElement('div', null,
                                             React.createElement('h3', { className: "text-white font-bold text-2xl mb-3 drop-shadow-lg leading-tight truncate" }, p.name),
                                             
-                                            // 新的底部資訊列 (銀色文字風格)
                                             React.createElement('div', { className: "flex items-center justify-between" },
                                                 React.createElement('div', { className: "flex items-center gap-3 text-xs font-bold text-stone-200 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 shadow-sm" },
                                                     React.createElement('span', { className: "flex items-center gap-1.5" },
@@ -330,25 +336,34 @@
             );
         }
 
-        // --- 2. 身分選擇視窗 ---
+        // --- 2. 身分選擇視窗 (優化: 點擊外部關閉 / 去灰框 / 文案修改) ---
         function MemberSelectModal({ project, onClose, onConfirm }) {
-            return React.createElement('div', { className: "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" },
-                React.createElement('div', { className: "silver-frame w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative overflow-hidden" },
+            return React.createElement('div', { 
+                onClick: onClose, // 點擊外部關閉
+                className: "fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" 
+            },
+                React.createElement('div', { 
+                    onClick: e => e.stopPropagation(), // 阻止冒泡
+                    className: "clean-modal w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative overflow-hidden" 
+                },
                     React.createElement('div', { className: "relative text-center mb-8" },
                         React.createElement('div', { className: "w-16 h-16 bg-[#6B8E78] text-white rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-lg shadow-teal-700/30" }, "?"),
-                        React.createElement('h2', { className: "text-2xl font-bold text-stone-800" }, "請問您是哪位？"),
-                        React.createElement('p', { className: "text-stone-500 text-sm mt-1" }, `進入「${project.name}」前的身分確認`)
+                        React.createElement('h2', { className: "text-2xl font-bold text-stone-800" }, "請問您是哪位旅伴？")
+                        // 移除副標題
                     ),
 
                     React.createElement('div', { className: "grid grid-cols-2 gap-3 mb-6 max-h-60 overflow-y-auto pr-1" },
-                        project.members.map(m => 
+                        project.members.map((m, index) => 
                             React.createElement('button', { 
                                 key: m.id, 
                                 onClick: () => onConfirm(m.id),
-                                className: "flex flex-col items-center p-4 rounded-2xl bg-white border-2 border-stone-100 hover:border-[#6B8E78] hover:bg-green-50/50 transition-all group"
+                                className: "flex flex-col items-center p-4 rounded-2xl bg-stone-50 border border-stone-100 hover:border-[#6B8E78] hover:bg-green-50/50 transition-all group"
                             },
-                                React.createElement('div', { className: "w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 font-bold mb-2 group-hover:bg-[#6B8E78] group-hover:text-white transition-colors text-lg" }, m.name[0]),
-                                React.createElement('span', { className: "text-sm font-bold text-stone-700" }, m.name)
+                                React.createElement('div', { className: "w-12 h-12 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-600 font-bold mb-2 group-hover:bg-[#6B8E78] group-hover:border-transparent group-hover:text-white transition-all text-lg shadow-sm" }, m.name[0]),
+                                React.createElement('div', { className: "flex flex-col items-center" },
+                                    React.createElement('span', { className: "text-xs text-stone-400 mb-0.5" }, index === 0 ? "👑 主辦人" : `🎒 旅伴 ${index}`),
+                                    React.createElement('span', { className: "text-sm font-bold text-stone-700" }, m.name)
+                                )
                             )
                         )
                     ),
@@ -360,6 +375,7 @@
 
         // --- 3. 儀表板 ---
         function Dashboard({ project, userId, onBack, showToast, onUpdateProject, onDeleteProject, supabase }) {
+            // ... (Dashboard 代碼保持不變，因為此次需求集中在列表與 Modal) ...
             const [expenses, setExpenses] = useState([]);
             const [tab, setTab] = useState('list');
             const [showAdd, setShowAdd] = useState(false);
@@ -540,7 +556,7 @@
             );
         }
 
-        // --- 4. 記帳面板 ---
+        // --- 4. 記帳面板 (去灰框) ---
         function ExpenseModal({ project, onClose, onSubmit, supabase, defaultPayer }) {
             const [data, setData] = useState({ title: '', amount: '', category_id: 'food', payer_id: defaultPayer || project.members[0].id, split_type: 'equal', involved_ids: project.members.map(m=>m.id) });
             const [uploading, setUploading] = useState(false);
@@ -570,15 +586,21 @@
                 onClose();
             }
 
-            return React.createElement('div', { className: "fixed inset-0 bg-black/60 z-[60] flex items-end md:items-center justify-center backdrop-blur-sm" },
-                React.createElement('div', { className: "silver-frame w-full max-w-sm rounded-t-[2.5rem] md:rounded-[2.5rem] p-6 animate-fade-in max-h-[90vh] overflow-y-auto shadow-2xl relative" },
-                    React.createElement('div', { className: "w-16 h-1.5 bg-stone-300/50 rounded-full mx-auto mb-6 md:hidden" }),
+            return React.createElement('div', { 
+                onClick: onClose, // 點擊外部關閉
+                className: "fixed inset-0 bg-black/50 z-[60] flex items-end md:items-center justify-center backdrop-blur-sm" 
+            },
+                React.createElement('div', { 
+                    onClick: e => e.stopPropagation(), // 阻止冒泡
+                    className: "clean-modal w-full max-w-sm rounded-t-[2.5rem] md:rounded-[2.5rem] p-6 animate-fade-in max-h-[90vh] overflow-y-auto shadow-2xl relative" 
+                },
+                    React.createElement('div', { className: "w-16 h-1.5 bg-stone-200/50 rounded-full mx-auto mb-6 md:hidden" }),
 
                     // 1. 金額輸入
                     React.createElement('div', { className: "text-center mb-6" },
-                         React.createElement('label', { className: "text-stone-500 text-xs font-bold mb-1 block uppercase tracking-wide" }, "AMOUNT"),
+                         React.createElement('label', { className: "text-stone-400 text-xs font-bold mb-1 block uppercase tracking-wide" }, "AMOUNT"),
                          React.createElement('div', { className: "flex items-center justify-center gap-2" },
-                            React.createElement('span', { className: "text-3xl text-stone-400 font-light" }, "$"),
+                            React.createElement('span', { className: "text-3xl text-stone-300 font-light" }, "$"),
                             React.createElement('input', { 
                                 className: "text-5xl font-bold text-stone-800 outline-none bg-transparent w-48 text-center placeholder-stone-200", 
                                 type: "number", 
@@ -645,11 +667,17 @@
             );
         }
 
-        // --- 共用組件 ---
+        // --- 共用組件: 確認視窗 (去灰框 / 點擊外部關閉) ---
         function ConfirmModal({ title, message, onClose, onConfirm }) {
-            return React.createElement('div', { className: "fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-6 backdrop-blur-sm" },
-                React.createElement('div', { className: "silver-frame w-full max-w-sm rounded-[2rem] p-8 animate-zoom-in shadow-2xl text-center" },
-                    React.createElement('div', { className: "w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-500 mx-auto mb-4" }, React.createElement(AlertTriangle, { size: 32 })),
+            return React.createElement('div', { 
+                onClick: onClose, // 點擊外部關閉
+                className: "fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-6 backdrop-blur-sm" 
+            },
+                React.createElement('div', { 
+                    onClick: e => e.stopPropagation(), 
+                    className: "clean-modal w-full max-w-sm rounded-[2rem] p-8 animate-zoom-in shadow-2xl text-center" 
+                },
+                    React.createElement('div', { className: "w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500 mx-auto mb-4" }, React.createElement(AlertTriangle, { size: 32 })),
                     React.createElement('h3', { className: "text-xl font-bold text-stone-800 mb-2" }, title),
                     React.createElement('p', { className: "text-stone-500 text-sm mb-8 leading-relaxed" }, message),
                     React.createElement('div', { className: "flex gap-3" },
@@ -660,6 +688,7 @@
             );
         }
 
+        // --- 編輯/新增行程視窗 (優化: 去灰框 / 點擊外部關閉 / 新的圖片上傳 UI) ---
         function ProjectModal({ mode, project, onClose, onSubmit, supabase }) {
             const [name, setName] = useState(project?.name || '');
             const [members, setMembers] = useState(project?.members?.map(m => m.name) || ['', '']);
@@ -695,8 +724,14 @@
                 onSubmit(name, valid, img); onClose();
             };
 
-            return React.createElement('div', { className: "fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" },
-                React.createElement('div', { className: "silver-frame w-full max-w-lg rounded-[2.5rem] p-8 animate-zoom-in max-h-[90vh] overflow-y-auto relative" },
+            return React.createElement('div', { 
+                onClick: onClose, // 點擊外部關閉
+                className: "fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" 
+            },
+                React.createElement('div', { 
+                    onClick: e => e.stopPropagation(), 
+                    className: "clean-modal w-full max-w-lg rounded-[2.5rem] p-8 animate-zoom-in max-h-[90vh] overflow-y-auto relative" 
+                },
                     React.createElement('div', { className: "flex justify-between items-center mb-6" },
                         React.createElement('h2', { className: "text-2xl font-bold text-stone-700" }, mode === 'create' ? "建立新行程" : "編輯行程"),
                         React.createElement('button', { onClick: onClose }, React.createElement(X, { className: "text-stone-400 hover:text-stone-600" }))
@@ -715,26 +750,27 @@
                         ),
                         React.createElement('div', null,
                              React.createElement('label', { className: "block text-sm font-bold text-stone-500 mb-2 ml-1" }, "封面照片"),
-                             React.createElement('div', { className: "h-48 rounded-3xl bg-stone-100 relative overflow-hidden group mb-3 shadow-inner border border-stone-200", style: { backgroundImage: `url(${preview})`, backgroundSize: 'cover', backgroundPosition: 'center' } },
+                             React.createElement('div', { className: "h-48 rounded-3xl bg-stone-100 relative overflow-hidden group mb-4 shadow-inner border border-stone-200", style: { backgroundImage: `url(${preview})`, backgroundSize: 'cover', backgroundPosition: 'center' } },
                                 React.createElement('div', { className: "absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" },
                                     React.createElement('span', { className: "text-white text-sm font-bold" }, "預覽")
                                 )
                              ),
-                             // 明確的按鈕區域
-                             React.createElement('div', { className: "flex gap-3" },
-                                React.createElement('label', { className: "flex-1 cursor-pointer bg-white border border-stone-300 text-stone-600 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-stone-50 hover:border-stone-400 transition-all shadow-sm" },
-                                    uploading ? React.createElement(RefreshCw, { size: 16, className: "animate-spin" }) : React.createElement(Camera, { size: 18 }), 
+                             
+                             // 簡約文字連結風格
+                             React.createElement('div', { className: "flex justify-between items-center border-t border-stone-100 pt-3" },
+                                React.createElement('label', { className: "cursor-pointer text-stone-500 hover:text-[#6B8E78] text-sm font-bold flex items-center gap-2 transition-colors group" },
+                                    uploading ? React.createElement(RefreshCw, { size: 16, className: "animate-spin text-[#6B8E78]" }) : React.createElement(Camera, { size: 18, className: "group-hover:scale-110 transition-transform" }), 
                                     uploading ? "上傳中..." : "上傳自己的圖片",
                                     React.createElement('input', { type: "file", className: "hidden", accept: "image/*", onChange: handleUpload, disabled: uploading })
                                 ),
                                 React.createElement('button', { 
                                      onClick: () => { const rnd = ['https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800','https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800','https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800'][Math.floor(Math.random()*3)]; setImg(rnd); setPreview(rnd); },
-                                     className: "px-4 py-3 bg-white border border-stone-300 text-stone-600 rounded-2xl text-sm font-bold flex items-center gap-2 hover:bg-stone-50 hover:border-stone-400 transition-all shadow-sm"
-                                 }, React.createElement(RefreshCw, { size: 18 }), "隨機圖片")
+                                     className: "text-stone-400 hover:text-stone-600 text-sm font-bold flex items-center gap-2 transition-colors group"
+                                 }, React.createElement(RefreshCw, { size: 16, className: "group-hover:rotate-180 transition-transform duration-500" }), "隨機圖片")
                              )
                         ),
-                        React.createElement('div', { className: "flex justify-end gap-3 pt-6 border-t border-stone-200" },
-                            React.createElement('button', { onClick: onClose, className: "px-6 py-3 text-stone-500 font-bold hover:bg-stone-100 rounded-2xl transition-colors" }, "取消"),
+                        React.createElement('div', { className: "flex justify-end gap-3 pt-6 border-t border-stone-100" },
+                            React.createElement('button', { onClick: onClose, className: "px-6 py-3 text-stone-500 font-bold hover:bg-stone-50 rounded-2xl transition-colors" }, "取消"),
                             React.createElement('button', { onClick: handleSubmit, disabled: uploading, className: "px-8 py-3 bg-[#6B8E78] text-white rounded-2xl font-bold shadow-lg hover:bg-[#5A7A66] transition-all transform active:scale-95 disabled:opacity-50" }, uploading ? "處理中..." : (mode==='create'?"建立":"儲存"))
                         )
                     )
