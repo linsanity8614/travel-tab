@@ -13,6 +13,8 @@
         .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
         .animate-zoom-in { animation: zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes popUp { 0% { opacity: 0; transform: translate(-50%, -40%) scale(0.9); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+        .animate-pop-up { animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         
         /* 銀框質感 */
         .silver-frame {
@@ -36,14 +38,12 @@
             font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
         }
 
-        /* 隱藏數字輸入框的箭頭 (Chrome, Safari, Edge, Opera) */
+        /* 隱藏數字輸入框的箭頭 */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
             -webkit-appearance: none; 
             margin: 0; 
         }
-
-        /* 隱藏數字輸入框的箭頭 (Firefox) */
         input[type=number] {
             -moz-appearance: textfield;
         }
@@ -60,7 +60,7 @@
             Plus, Users, ArrowRight, Trash2, PieChart, List, DollarSign, Activity, Calendar, 
             ArrowLeft, Settings, Share2, Edit2, Check, X, Image as ImageIcon, Camera, RefreshCw,
             Crown, Upload, Info, Link as LinkIcon, AlertTriangle, UserCheck, Utensils, Bus, Bed, Ticket, ShoppingBag, Box,
-            Coffee, Beer, Music, Map, RotateCcw, UserPlus, Globe, FileText, AlertCircle
+            Coffee, Beer, Music, Map, RotateCcw, UserPlus, Globe, FileText, AlertCircle, Clock
         } from 'https://esm.sh/lucide-react@0.263.1';
         import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'https://esm.sh/recharts@2.7.2?deps=react@18.2.0,react-dom@18.2.0';
 
@@ -155,7 +155,7 @@
             const [curProject, setCurProject] = useState(null);
             const [tempProject, setTempProject] = useState(null); 
             const [userId] = useState(() => localStorage.getItem('user_id') || crypto.randomUUID());
-            const [toast, setToast] = useState(null);
+            const [popup, setPopup] = useState(null); // Changed from toast to popup
             const [showMemberSelect, setShowMemberSelect] = useState(false);
 
             useEffect(() => {
@@ -172,7 +172,10 @@
                 return () => supabase.removeChannel(sub);
             }, []);
 
-            const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+            const showPopup = (msg, type = 'success') => { 
+                setPopup({ msg, type }); 
+                setTimeout(() => setPopup(null), 1500); 
+            };
 
             const handleProjectClick = (project) => {
                 const storedMemberId = localStorage.getItem(`member_${project.id}`);
@@ -211,7 +214,7 @@
                     setTempProject(null);
                     setShowMemberSelect(false);
                     setView('dashboard');
-                    showToast(`歡迎加入，${name}！`);
+                    showPopup(`歡迎加入，${name}！`);
                 }
             };
 
@@ -224,16 +227,16 @@
                     onCreate: async (name, members, bg) => {
                         const mObjs = members.map(m => ({ id: crypto.randomUUID(), name: m }));
                         const { error } = await supabase.from('projects').insert([{ name, members: mObjs, background_image: bg, created_by: userId }]);
-                        if(error) alert(error.message); else showToast("行程建立成功");
+                        if(error) alert(error.message); else showPopup("行程建立成功");
                     }, 
                     onSelect: handleProjectClick,
                     onDelete: async (id) => {
                          const { error } = await supabase.from('projects').delete().eq('id', id);
-                         if(!error) showToast("行程已刪除");
+                         if(!error) showPopup("行程已刪除");
                     },
                     onUpdate: async (id, name, bg) => {
                          const { error } = await supabase.from('projects').update({ name, background_image: bg }).eq('id', id);
-                         if(!error) showToast("更新成功");
+                         if(!error) showPopup("更新成功");
                     },
                     supabase 
                   })
@@ -241,11 +244,11 @@
                     project: curProject, 
                     userId, 
                     onBack: () => setView('list'), 
-                    showToast,
+                    showPopup,
                     onUpdateProject: async (updates) => {
                         await supabase.from('projects').update(updates).eq('id', curProject.id);
                         setCurProject(prev => ({ ...prev, ...updates }));
-                        showToast("設定已更新");
+                        showPopup("設定已更新");
                     },
                     supabase
                   }),
@@ -257,8 +260,18 @@
                     onJoinNew: handleJoinNewMember
                 }),
 
-                toast && React.createElement('div', { className: "fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-xl z-[100] flex items-center gap-2 animate-fade-in" }, 
-                    React.createElement(Check, { size: 18, className: "text-green-400" }), toast
+                // 醒目提示小視窗 (Success Popup)
+                popup && React.createElement('div', { 
+                    className: "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[100] animate-pop-up" 
+                },
+                    React.createElement('div', { 
+                        className: "bg-white/95 backdrop-blur-md px-8 py-6 rounded-3xl shadow-2xl flex flex-col items-center gap-3 border border-stone-100 min-w-[200px]" 
+                    },
+                        React.createElement('div', { className: `w-12 h-12 rounded-full flex items-center justify-center ${popup.type === 'error' ? 'bg-red-100 text-red-500' : 'bg-[#6B8E78]/10 text-[#6B8E78]'}` },
+                            popup.type === 'error' ? React.createElement(AlertCircle, { size: 24 }) : React.createElement(Check, { size: 24, strokeWidth: 3 })
+                        ),
+                        React.createElement('span', { className: "text-stone-700 font-bold text-lg tracking-wide" }, popup.msg)
+                    )
                 )
             );
         }
@@ -412,10 +425,12 @@
         }
 
         // --- 3. 儀表板 (維持不變) ---
-        function Dashboard({ project, userId, onBack, showToast, onUpdateProject, onDeleteProject, supabase }) {
+        function Dashboard({ project, userId, onBack, showPopup, onUpdateProject, onDeleteProject, supabase }) {
             const [expenses, setExpenses] = useState([]);
             const [tab, setTab] = useState('list');
             const [showAdd, setShowAdd] = useState(false);
+            const [editingExpense, setEditingExpense] = useState(null);
+            const [viewExpense, setViewExpense] = useState(null); // Keep for compatibility if we want click-to-view in future
             const myId = localStorage.getItem(`member_${project.id}`);
 
             useEffect(() => {
@@ -460,11 +475,21 @@
 
             const handleAdd = async (data) => {
                 const { error } = await supabase.from('expenses').insert([{ ...data, project_id: project.id, created_by: userId }]);
-                if(error) alert(error.message); else showToast("新增成功");
+                if(error) alert(error.message); else showPopup("新增成功");
+            };
+
+            const handleUpdate = async (data) => {
+                const { error } = await supabase.from('expenses').update(data).eq('id', editingExpense.id);
+                if(error) alert(error.message); else showPopup("修改成功");
+                setEditingExpense(null);
+                setShowAdd(false);
             };
 
             const handleDelete = async (id) => {
-                if(confirm("確定刪除？")) await supabase.from('expenses').delete().eq('id', id);
+                if(confirm("確定刪除此筆帳目？")) {
+                    await supabase.from('expenses').delete().eq('id', id);
+                    showPopup("已刪除", "error"); // Use error type for delete indication (red icon) or neutral
+                }
             };
 
             return React.createElement('div', { className: "max-w-md mx-auto bg-white min-h-screen flex flex-col shadow-2xl relative" },
@@ -478,7 +503,7 @@
                         )
                     ),
                     React.createElement('button', { 
-                        onClick: () => setShowAdd(true), 
+                        onClick: () => { setEditingExpense(null); setShowAdd(true); }, 
                         className: "text-white p-3 rounded-2xl shadow-lg hover:scale-105 transition-transform bg-[#6B8E78]"
                     }, React.createElement(Plus, { size: 24 }))
                 ),
@@ -495,31 +520,20 @@
                 // Content
                 React.createElement('div', { className: "flex-1 p-4 bg-[#F5F5F2] overflow-y-auto" },
                     
-                    // 1. 明細列表
+                    // 1. 明細列表 (卡片優化版)
                     tab === 'list' && React.createElement('div', { className: "space-y-4 animate-zoom-in min-h-[50vh]" },
                         expenses.length === 0 ? React.createElement('div', { className: "flex flex-col items-center justify-center py-20 opacity-80" },
                             React.createElement('img', { src: EMPTY_IMG, className: "w-32 h-32 mb-4 opacity-80 mix-blend-multiply" }),
                             React.createElement('h3', { className: "text-stone-600 font-bold text-lg" }, "這裡空空的"),
                             React.createElement('p', { className: "text-stone-400 text-sm mt-1" }, "點擊右上方「+」記下第一筆花費吧！")
                         ) :
-                        expenses.map(e => React.createElement('div', { key: e.id, className: "bg-white p-4 rounded-2xl shadow-sm border border-stone-100 flex justify-between items-center group active:scale-[0.98] transition-transform" },
-                            React.createElement('div', { className: "flex items-center gap-4" },
-                                React.createElement('div', { className: "w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0 text-xl emoji-icon", style: { backgroundColor: CATEGORIES.find(c=>c.id===e.category_id)?.color } }, 
-                                    CATEGORIES.find(c=>c.id===e.category_id)?.emoji || '📦'
-                                ),
-                                React.createElement('div', null, 
-                                    React.createElement('div', { className: "font-bold text-stone-800 text-lg" }, e.title), 
-                                    React.createElement('div', { className: "text-xs text-stone-500 mt-1 flex items-center gap-1" }, 
-                                        React.createElement(Users, { size: 10 }),
-                                        project.members.find(m=>m.id===e.payer_id)?.name, " 先付"
-                                    )
-                                )
-                            ),
-                            React.createElement('div', { className: "text-right" }, 
-                                React.createElement('div', { className: "font-bold text-stone-800 text-lg" }, formatMoney(e.amount)),
-                                React.createElement('button', { onClick: () => handleDelete(e.id), className: "text-xs text-red-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" }, "刪除")
-                            )
-                        ))
+                        expenses.map(e => React.createElement(ExpenseItem, { 
+                            key: e.id, 
+                            expense: e, 
+                            project: project,
+                            onEdit: () => { setEditingExpense(e); setShowAdd(true); },
+                            onDelete: () => handleDelete(e.id)
+                        }))
                     ),
 
                     // 2. 總覽
@@ -580,7 +594,7 @@
                                 React.createElement('button', { onClick: () => {
                                     const url = window.location.href.split('?')[0] + '?pid=' + project.id;
                                     navigator.clipboard.writeText(url);
-                                    showToast("連結已複製");
+                                    showPopup("連結已複製");
                                 }, className: "w-full py-3 bg-stone-50 hover:bg-stone-100 rounded-xl text-stone-600 text-sm font-medium flex justify-center items-center gap-2 transition-colors" }, React.createElement(Share2, { size: 16 }), "複製邀請連結")
                             )
                          ),
@@ -589,13 +603,92 @@
                          )
                     )
                 ),
-                showAdd && React.createElement(ExpenseModal, { project, onClose: () => setShowAdd(false), onSubmit: handleAdd, supabase, defaultPayer: myId })
+                showAdd && React.createElement(ExpenseModal, { 
+                    project, 
+                    onClose: () => { setShowAdd(false); setEditingExpense(null); }, 
+                    onSubmit: editingExpense ? handleUpdate : handleAdd, 
+                    supabase, 
+                    defaultPayer: myId,
+                    initialData: editingExpense 
+                })
+            );
+        }
+
+        // --- 新的 ExpenseItem 組件 (優化版面與功能) ---
+        function ExpenseItem({ expense, project, onEdit, onDelete }) {
+            const category = CATEGORIES.find(c => c.id === expense.category_id) || CATEGORIES[5];
+            const payer = project.members.find(m => m.id === expense.payer_id)?.name || '未知';
+            
+            // 產生分帳字串
+            let splitText = '';
+            if (expense.split_type === 'custom') {
+                splitText = '自訂分帳';
+            } else {
+                const ids = expense.involved_ids || [];
+                if (ids.length === 0) splitText = '自行吸收';
+                else if (ids.length === project.members.length) splitText = '所有人';
+                else {
+                    const names = ids.map(id => project.members.find(m => m.id === id)?.name || '?');
+                    splitText = names.join(', ');
+                }
+            }
+
+            return React.createElement('div', { className: "bg-white rounded-2xl shadow-sm border border-stone-100 relative group overflow-hidden pl-3 py-4 pr-4 transition-all hover:shadow-md hover:-translate-y-0.5" },
+                // 左側顏色條
+                React.createElement('div', { className: "absolute left-0 top-0 bottom-0 w-1.5", style: { backgroundColor: category.color } }),
+                
+                React.createElement('div', { className: "flex justify-between items-start mb-2" },
+                    // 標題與 Icon
+                    React.createElement('div', { className: "flex items-center gap-3" },
+                        React.createElement('div', { className: "text-2xl emoji-icon" }, category.emoji),
+                        React.createElement('h4', { className: "font-bold text-lg text-stone-800 tracking-wide" }, expense.title)
+                    ),
+                    // 金額
+                    React.createElement('div', { className: "text-right" },
+                        React.createElement('span', { className: "font-bold text-xl text-stone-700 block leading-none" }, formatMoney(expense.amount)),
+                        expense.currency !== 'TWD' && React.createElement('span', { className: "text-xs text-stone-400 font-medium" }, `${expense.currency} ${expense.original_amount}`)
+                    )
+                ),
+
+                // 第二行：付款人與時間
+                React.createElement('div', { className: "flex items-center justify-between text-xs text-stone-500 mb-1.5 pl-1" },
+                    React.createElement('div', { className: "flex items-center gap-1.5 bg-stone-50 px-2 py-1 rounded-md" },
+                        React.createElement('span', { className: "font-bold text-[#6B8E78]" }, payer),
+                        React.createElement('span', null, "先付")
+                    ),
+                    React.createElement('div', { className: "flex items-center gap-1 text-stone-400" },
+                        React.createElement(Clock, { size: 10 }),
+                        React.createElement('span', null, formatDate(expense.created_at))
+                    )
+                ),
+
+                // 第三行：分給誰 + 操作按鈕
+                React.createElement('div', { className: "flex justify-between items-end pl-1" },
+                    React.createElement('div', { className: "text-xs text-stone-400 flex-1 pr-14 truncate" },
+                        "分給: ", React.createElement('span', { className: "text-stone-600 font-medium" }, splitText)
+                    ),
+                    // 操作按鈕 (絕對定位或 Flex 右側)
+                    React.createElement('div', { className: "flex gap-2" },
+                        React.createElement('button', { 
+                            onClick: (e) => { e.stopPropagation(); onEdit(); },
+                            className: "p-1.5 bg-stone-50 rounded-full text-stone-400 hover:text-[#6B8E78] hover:bg-green-50 transition-colors"
+                        }, React.createElement(Edit2, { size: 16 })),
+                        React.createElement('button', { 
+                            onClick: (e) => { e.stopPropagation(); onDelete(); },
+                            className: "p-1.5 bg-stone-50 rounded-full text-stone-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        }, React.createElement(Trash2, { size: 16 }))
+                    )
+                )
             );
         }
 
         // --- 4. 記帳面板 (重構: 匯率/Emoji/分帳優化) ---
-        function ExpenseModal({ project, onClose, onSubmit, supabase, defaultPayer }) {
-            const [data, setData] = useState({ 
+        function ExpenseModal({ project, onClose, onSubmit, supabase, defaultPayer, initialData }) {
+            // 如果有 initialData (編輯模式)，則使用它，否則初始化預設值
+            const [data, setData] = useState(initialData ? {
+                ...initialData,
+                custom_amounts: initialData.split_details || {}
+            } : { 
                 title: '', 
                 amount: '', 
                 currency: 'TWD',
@@ -605,7 +698,8 @@
                 involved_ids: project.members.map(m=>m.id),
                 custom_amounts: {}
             });
-            const [exchangeRate, setExchangeRate] = useState(1);
+            
+            const [exchangeRate, setExchangeRate] = useState(initialData?.exchange_rate || 1);
             const [uploading, setUploading] = useState(false);
 
             // 當幣別改變時，自動切換預設匯率
@@ -647,7 +741,7 @@
                 const finalAmount = Math.round(Number(data.amount) * exchangeRate);
                 
                 // --- FIX: remove custom_amounts from payload ---
-                const { custom_amounts, ...cleanData } = data;
+                const { custom_amounts, id, created_at, ...cleanData } = data;
                 
                 const finalData = { 
                     ...cleanData, 
@@ -668,7 +762,6 @@
                 }
 
                 // If user entered a title, we use it. 
-                // We already checked !data.title above, so this fallback is technically redundant but safe.
                 if (!finalData.title) {
                     finalData.title = CATEGORIES.find(c => c.id === data.category_id)?.name;
                 }
@@ -709,11 +802,6 @@
             const isCustomValid = Math.abs(remainingAmount) < 1 && data.involved_ids.length > 0;
             const isEqualValid = data.involved_ids.length > 0;
             
-            // Note: We intentionally don't disable the button based on title emptiness here 
-            // to allow the alert to trigger and guide the user, or we could. 
-            // But consistent with "Submit" button pattern, we usually validate on click or disable.
-            // Let's disable if amount is missing or logic invalid, but title we can validate on click 
-            // or just disable too. Let's keep existing logic but add title check.
             const isFormValid = data.amount && !uploading && (data.split_type === 'equal' ? isEqualValid : isCustomValid);
 
             return React.createElement('div', { 
@@ -728,7 +816,7 @@
 
                     // Header
                     React.createElement('div', { className: "flex justify-between items-center mb-6" },
-                        React.createElement('h2', { className: "text-xl font-bold text-stone-800" }, "記一筆"),
+                        React.createElement('h2', { className: "text-xl font-bold text-stone-800" }, initialData ? "編輯帳目" : "記一筆"),
                         React.createElement('button', { onClick: onClose, className: "p-2 bg-stone-100 rounded-full text-stone-500 hover:bg-stone-200" }, React.createElement(X, { size: 20 }))
                     ),
 
@@ -750,7 +838,7 @@
                                     value: data.amount,
                                     onChange: e => setData({...data, amount: e.target.value}),
                                     placeholder: "0",
-                                    autoFocus: true,
+                                    autoFocus: !initialData, // 只有新增時自動聚焦
                                     className: "w-full p-3 rounded-xl bg-white border border-stone-200 text-stone-800 font-bold text-right outline-none focus:border-[#6B8E78] text-lg"
                                 })
                             )
@@ -916,7 +1004,7 @@
                         onClick: handleSubmit,
                         disabled: !isFormValid,
                         className: `w-full py-4 text-white font-bold rounded-2xl shadow-xl text-lg hover:scale-[1.02] active:scale-95 transition-all mt-auto ${isFormValid ? 'bg-[#6B8E78] shadow-[#6B8E78]/20' : 'bg-stone-300 cursor-not-allowed'}`
-                    }, uploading ? "處理中..." : (isFormValid ? "完成" : (data.amount ? "金額不符或未選人" : "請輸入金額")))
+                    }, uploading ? "處理中..." : (isFormValid ? (initialData ? "儲存變更" : "完成") : (data.amount ? "金額不符或未選人" : "請輸入金額")))
                 )
             );
         }
