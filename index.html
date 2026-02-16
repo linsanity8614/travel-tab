@@ -69,7 +69,7 @@
             ArrowLeft, Settings, Share2, Edit2, Check, X, Image as ImageIcon, Camera, RefreshCw,
             Crown, Upload, Info, Link as LinkIcon, AlertTriangle, UserCheck, Utensils, Bus, Bed, Ticket, ShoppingBag, Box,
             Coffee, Beer, Music, Map, RotateCcw, UserPlus, Globe, FileText, AlertCircle, Clock, History, ExternalLink,
-            PenTool, Save, CheckSquare, PlusCircle
+            PenTool, Save, CheckSquare, PlusCircle, Star
         } from 'https://esm.sh/lucide-react@0.263.1';
         import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'https://esm.sh/recharts@2.7.2?deps=react@18.2.0,react-dom@18.2.0';
 
@@ -447,8 +447,8 @@
                         React.createElement('div', { className: "bg-white p-5 rounded-3xl shadow-sm border border-stone-100" }, React.createElement('h3', { className: "font-bold text-stone-700 mb-4 flex items-center gap-2" }, React.createElement(PieChart, { size: 18 }), "類別分析"), React.createElement('div', { className: "h-64" }, React.createElement(ResponsiveContainer, null, React.createElement(RePieChart, null, React.createElement(Pie, { data: stats.charts, dataKey: "value", cx: "50%", cy: "50%", innerRadius: 60, outerRadius: 80, paddingAngle: 5 }, stats.charts.map((e,i)=>React.createElement(Cell, { key: i, fill: e.color }))), React.createElement(ReTooltip), React.createElement(Legend)))))
                     ),
 
-                    // 3. 人員 (全新，使用 notes 資料表)
-                    tab === 'members' && React.createElement(MembersTab, { project, expenses, myId, supabase }),
+                    // 3. 人員 (全新，使用 notes 資料表，傳入 showPopup)
+                    tab === 'members' && React.createElement(MembersTab, { project, expenses, myId, supabase, showPopup }),
 
                     // 4. 結算
                     tab === 'settle' && React.createElement('div', { className: "space-y-4 animate-zoom-in" },
@@ -470,14 +470,13 @@
         }
 
         // --- 全新 Members Tab 組件 (整合 Notes 資料表與代辦事項) ---
-        function MembersTab({ project, expenses, myId, supabase }) {
+        function MembersTab({ project, expenses, myId, supabase, showPopup }) {
             const [selectedMemberId, setSelectedMemberId] = useState(myId || project.members[0].id);
             const [localNote, setLocalNote] = useState('');
             const [localTodos, setLocalTodos] = useState([]); // Array of {id, text, done}
             const [newTodo, setNewTodo] = useState('');
             const [isSaving, setIsSaving] = useState(false);
-            const saveTimeoutRef = useRef(null);
-
+            
             // 切換成員時載入資料
             useEffect(() => {
                 const fetchNote = async () => {
@@ -486,7 +485,7 @@
                         .select('content, todos')
                         .eq('project_id', project.id)
                         .eq('member_id', selectedMemberId)
-                        .single();
+                        .maybeSingle(); 
                     
                     if (data) {
                         setLocalNote(data.content || '');
@@ -500,52 +499,52 @@
                 fetchNote();
             }, [selectedMemberId, project.id, supabase]);
 
-            // 自動儲存邏輯 (Debounce)
-            const saveData = useCallback(async (content, todos) => {
+            // 手動儲存邏輯 (改為點擊按鈕觸發)
+            const handleManualSave = async () => {
                 setIsSaving(true);
-                // 使用 upsert，需要確保資料庫有對應的唯一限制，或我們自行檢查是否存在
-                // 這裡假設我們用 select 檢查存在與否太慢，直接 upsert
-                // 注意：使用 upsert 時，如果沒有唯一鍵衝突，它會 insert。
-                // 為了簡化，我們先嘗試查詢 ID，若有則 Update，若無則 Insert (或者依賴資料庫的 ON CONFLICT 雖然 JS SDK 支援比較有限)
                 
-                // 更穩健的做法：先查詢是否存在
-                const { data: existing } = await supabase
-                    .from('notes')
-                    .select('id')
-                    .eq('project_id', project.id)
-                    .eq('member_id', selectedMemberId)
-                    .single();
+                try {
+                    // 先檢查是否存在
+                    const { data: existing } = await supabase
+                        .from('notes')
+                        .select('id')
+                        .eq('project_id', project.id)
+                        .eq('member_id', selectedMemberId)
+                        .maybeSingle();
 
-                if (existing) {
-                    await supabase.from('notes').update({ 
-                        content, 
-                        todos,
-                        updated_at: new Date() 
-                    }).eq('id', existing.id);
-                } else {
-                    await supabase.from('notes').insert([{ 
-                        project_id: project.id, 
-                        member_id: selectedMemberId, 
-                        content,
-                        todos,
-                        updated_at: new Date()
-                    }]);
+                    let error;
+                    if (existing) {
+                        const res = await supabase.from('notes').update({ 
+                            content: localNote, 
+                            todos: localTodos,
+                            updated_at: new Date() 
+                        }).eq('id', existing.id);
+                        error = res.error;
+                    } else {
+                        // 修正：產生一個 id
+                        const res = await supabase.from('notes').insert([{ 
+                            id: crypto.randomUUID(), 
+                            project_id: project.id, 
+                            member_id: selectedMemberId, 
+                            content: localNote,
+                            todos: localTodos,
+                            updated_at: new Date()
+                        }]);
+                        error = res.error;
+                    }
+
+                    if (error) throw error;
+                    showPopup("儲存成功");
+                } catch (e) {
+                    console.error(e);
+                    alert("儲存失敗: " + e.message);
+                } finally {
+                    setIsSaving(false);
                 }
-                setIsSaving(false);
-            }, [project.id, selectedMemberId, supabase]);
-
-            // 觸發儲存的 wrapper
-            const triggerSave = (newContent, newTodos) => {
-                if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-                saveTimeoutRef.current = setTimeout(() => {
-                    saveData(newContent, newTodos);
-                }, 1000); // 1秒後自動儲存
             };
 
             const handleNoteChange = (e) => {
-                const val = e.target.value;
-                setLocalNote(val);
-                triggerSave(val, localTodos);
+                setLocalNote(e.target.value);
             };
 
             // Todo: 新增
@@ -555,21 +554,18 @@
                 const updatedTodos = [...localTodos, newItem];
                 setLocalTodos(updatedTodos);
                 setNewTodo('');
-                triggerSave(localNote, updatedTodos);
             };
 
             // Todo: 勾選
             const toggleTodo = (todoId) => {
                 const updatedTodos = localTodos.map(t => t.id === todoId ? { ...t, done: !t.done } : t);
                 setLocalTodos(updatedTodos);
-                triggerSave(localNote, updatedTodos);
             };
 
             // Todo: 刪除
             const deleteTodo = (todoId) => {
                 const updatedTodos = localTodos.filter(t => t.id !== todoId);
                 setLocalTodos(updatedTodos);
-                triggerSave(localNote, updatedTodos);
             };
 
             const stats = useMemo(() => {
@@ -615,30 +611,44 @@
             }, [expenses, selectedMemberId]);
 
             return React.createElement('div', { className: "animate-zoom-in space-y-6" },
-                // 1. 成員切換器
-                React.createElement('div', { className: "flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-2 px-2" },
-                    project.members.map(m => (
-                        React.createElement('button', { 
+                // 1. 成員切換器 (修正頂部間距與增加自我標示)
+                React.createElement('div', { className: "flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-2 px-2 pt-4" },
+                    project.members.map(m => {
+                        const isMe = m.id === myId;
+                        return React.createElement('button', { 
                             key: m.id, 
                             onClick: () => setSelectedMemberId(m.id),
-                            className: `flex flex-col items-center min-w-[70px] transition-all duration-300 ${selectedMemberId === m.id ? 'scale-105 opacity-100' : 'opacity-60 hover:opacity-100'}`
+                            className: `flex flex-col items-center min-w-[70px] transition-all duration-300 relative ${selectedMemberId === m.id ? 'scale-105 opacity-100' : 'opacity-60 hover:opacity-100'}`
                         },
-                            React.createElement('div', { className: `w-14 h-14 rounded-full flex items-center justify-center text-xl shadow-sm border-2 transition-colors ${selectedMemberId === m.id ? 'bg-[#6B8E78] border-[#6B8E78] text-white' : 'bg-white border-white text-stone-500'}` }, m.name[0]),
-                            React.createElement('span', { className: "text-xs font-bold mt-1 text-stone-600 truncate max-w-full" }, m.name)
-                        )
-                    ))
+                            React.createElement('div', { className: `w-14 h-14 rounded-full flex items-center justify-center text-xl shadow-sm border-2 transition-colors relative ${selectedMemberId === m.id ? 'bg-[#6B8E78] border-[#6B8E78] text-white' : 'bg-white border-white text-stone-500'}` }, 
+                                m.name[0],
+                                // 如果是本人，顯示星星標記
+                                isMe && React.createElement('div', { className: "absolute -top-1 -right-1 bg-yellow-400 text-white rounded-full p-0.5 border-2 border-white shadow-sm" }, 
+                                    React.createElement(Star, { size: 10, fill: "currentColor" })
+                                )
+                            ),
+                            React.createElement('div', { className: "flex items-center gap-1 mt-1" },
+                                React.createElement('span', { className: "text-xs font-bold text-stone-600 truncate max-w-full" }, m.name),
+                                isMe && React.createElement('span', { className: "text-[10px] bg-stone-200 text-stone-600 px-1 rounded font-bold" }, "我")
+                            )
+                        );
+                    })
                 ),
 
-                // 2. 雙區塊圖表
+                // 2. 雙區塊圖表 (新增 Legend)
                 React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
                     // 左：已先付 (綠色)
                     React.createElement('div', { className: "bg-white rounded-3xl p-5 shadow-sm border border-stone-100 flex flex-col items-center text-center relative overflow-hidden" },
                         React.createElement('div', { className: "absolute top-0 left-0 right-0 h-1.5 bg-[#6B8E78]" }),
                         React.createElement('p', { className: "text-xs font-bold text-stone-400 mt-2" }, "明細內已先付款"),
                         React.createElement('h3', { className: "text-2xl font-bold text-[#6B8E78] my-2" }, formatMoney(stats.paidTotal)),
-                        React.createElement('div', { className: "h-32 w-full mt-2" },
+                        React.createElement('div', { className: "h-48 w-full mt-2" }, 
                             stats.paidCharts.length > 0 
-                            ? React.createElement(ResponsiveContainer, null, React.createElement(RePieChart, null, React.createElement(Pie, { data: stats.paidCharts, dataKey: "value", cx: "50%", cy: "50%", innerRadius: 25, outerRadius: 40, paddingAngle: 5 }, stats.paidCharts.map((e,i)=>React.createElement(Cell, { key: i, fill: e.color }))), React.createElement(ReTooltip)))
+                            ? React.createElement(ResponsiveContainer, null, React.createElement(RePieChart, null, 
+                                React.createElement(Pie, { data: stats.paidCharts, dataKey: "value", cx: "50%", cy: "40%", innerRadius: 25, outerRadius: 40, paddingAngle: 5 }, stats.paidCharts.map((e,i)=>React.createElement(Cell, { key: i, fill: e.color }))), 
+                                React.createElement(ReTooltip),
+                                React.createElement(Legend, { iconSize: 10, wrapperStyle: { fontSize: '10px' }, verticalAlign: "bottom" })
+                              ))
                             : React.createElement('div', { className: "h-full flex items-center justify-center text-xs text-stone-300" }, "無付款紀錄")
                         )
                     ),
@@ -647,25 +657,33 @@
                         React.createElement('div', { className: "absolute top-0 left-0 right-0 h-1.5 bg-[#88B0C9]" }),
                         React.createElement('p', { className: "text-xs font-bold text-stone-400 mt-2" }, "實際總花費 (結算後)"),
                         React.createElement('h3', { className: "text-2xl font-bold text-[#6B8E78] my-2" }, formatMoney(stats.costTotal)),
-                        React.createElement('div', { className: "h-32 w-full mt-2" },
+                        React.createElement('div', { className: "h-48 w-full mt-2" },
                             stats.costCharts.length > 0 
-                            ? React.createElement(ResponsiveContainer, null, React.createElement(RePieChart, null, React.createElement(Pie, { data: stats.costCharts, dataKey: "value", cx: "50%", cy: "50%", innerRadius: 25, outerRadius: 40, paddingAngle: 5 }, stats.costCharts.map((e,i)=>React.createElement(Cell, { key: i, fill: e.color }))), React.createElement(ReTooltip)))
+                            ? React.createElement(ResponsiveContainer, null, React.createElement(RePieChart, null, 
+                                React.createElement(Pie, { data: stats.costCharts, dataKey: "value", cx: "50%", cy: "40%", innerRadius: 25, outerRadius: 40, paddingAngle: 5 }, stats.costCharts.map((e,i)=>React.createElement(Cell, { key: i, fill: e.color }))), 
+                                React.createElement(ReTooltip),
+                                React.createElement(Legend, { iconSize: 10, wrapperStyle: { fontSize: '10px' }, verticalAlign: "bottom" })
+                              ))
                             : React.createElement('div', { className: "h-full flex items-center justify-center text-xs text-stone-300" }, "無消費紀錄")
                         )
                     )
                 ),
 
-                // 3. 隨身筆記本與代辦事項
+                // 3. 隨身筆記本與代辦事項 (修正標題遮擋，改為手動儲存按鈕)
                 React.createElement('div', { className: "bg-[#FFFDE7] rounded-2xl p-6 shadow-sm border border-yellow-200/50 relative overflow-hidden" },
-                    React.createElement('div', { className: "absolute top-0 left-0 w-full h-8 bg-[#F0F4C3]/30 border-b border-[#E6EE9C]" }), // Header decoration
+                    React.createElement('div', { className: "absolute top-0 left-0 w-full h-14 bg-[#F0F4C3]/30 border-b border-[#E6EE9C]" }), 
                     
-                    // 筆記標題區
+                    // 筆記標題區 + 儲存按鈕
                     React.createElement('div', { className: "flex items-center gap-2 mb-4 text-yellow-800/70 relative z-10" },
                         React.createElement(PenTool, { size: 16 }),
                         React.createElement('span', { className: "font-bold text-sm" }, "隨身筆記本"),
-                        React.createElement('span', { className: "text-[10px] ml-auto flex items-center gap-1" }, 
-                            isSaving ? React.createElement(RefreshCw, { size: 10, className: "animate-spin" }) : React.createElement(Check, { size: 10 }),
-                            isSaving ? "儲存中..." : "已儲存"
+                        React.createElement('button', { 
+                            onClick: handleManualSave,
+                            disabled: isSaving,
+                            className: "ml-auto flex items-center gap-1 px-3 py-1.5 bg-yellow-400 hover:bg-yellow-500 text-white rounded-lg shadow-sm text-xs font-bold transition-all active:scale-95 disabled:opacity-70"
+                        }, 
+                            isSaving ? React.createElement(RefreshCw, { size: 12, className: "animate-spin" }) : React.createElement(Save, { size: 12 }),
+                            isSaving ? "儲存中..." : "儲存變更"
                         )
                     ),
 
@@ -673,7 +691,7 @@
                     React.createElement('textarea', {
                         value: localNote,
                         onChange: handleNoteChange,
-                        placeholder: "記下代買清單、備忘錄或任何想說的話...",
+                        placeholder: "記下代買清單、備忘錄或任何想說的話... (輸入完記得點擊右上方儲存)",
                         className: "lined-paper w-full min-h-[160px] bg-transparent border-none outline-none text-stone-700 text-base font-medium resize-none placeholder-yellow-700/30 mb-6 leading-8 tracking-wide"
                     }),
 
@@ -693,7 +711,7 @@
                                 value: newTodo,
                                 onChange: (e) => setNewTodo(e.target.value),
                                 onKeyDown: (e) => e.key === 'Enter' && handleAddTodo(),
-                                placeholder: "新增待辦...",
+                                placeholder: "新增待辦 (記得按儲存)...",
                                 className: "flex-1 bg-white/50 border border-yellow-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-yellow-400 placeholder-yellow-700/30"
                             }),
                             React.createElement('button', { 
