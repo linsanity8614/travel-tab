@@ -351,7 +351,7 @@
             // New States for Filtering & Grouping
             const [showFilter, setShowFilter] = useState(false);
             const [filters, setFilters] = useState({ category: '', payer: '', keyword: '', date: '' });
-            const [tempDates, setTempDates] = useState([]); // Temporary empty date sections
+            // Removed tempDates state
             
             const myId = localStorage.getItem(`member_${project.id}`);
 
@@ -389,8 +389,7 @@
                 if (hasActiveFilter) return null;
                 const groups = {};
                 
-                // Add temp dates first so they appear even if empty
-                tempDates.forEach(d => { if(!groups[d]) groups[d] = []; });
+                // Removed tempDates loop
 
                 filteredExpenses.forEach(e => {
                     // Use 'date' field first, fallback to 'created_at' date part
@@ -410,7 +409,7 @@
                     obj[key] = groups[key];
                     return obj;
                 }, {});
-            }, [filteredExpenses, hasActiveFilter, tempDates]);
+            }, [filteredExpenses, hasActiveFilter]);
 
             // Drag & Drop Handlers
             const handleDropOnDate = async (e, targetDate) => {
@@ -479,12 +478,7 @@
                 setDeleteExpenseId(null);
             };
 
-            const handleAddDateSection = () => {
-                const date = prompt("請輸入日期 (YYYY-MM-DD)", new Date().toISOString().split('T')[0]);
-                if (date && !tempDates.includes(date)) {
-                    setTempDates(prev => [...prev, date].sort((a,b) => new Date(b) - new Date(a)));
-                }
-            };
+            // Removed handleAddDateSection
 
             return React.createElement('div', { className: "max-w-md mx-auto bg-white min-h-screen flex flex-col shadow-2xl relative" },
                 // Header
@@ -613,12 +607,8 @@
                                             ) : React.createElement('div', { className: "h-16 border-2 border-dashed border-stone-200 rounded-2xl flex items-center justify-center text-xs text-stone-400 font-bold" }, "拖曳卡片至此")
                                         )
                                     )
-                                ),
-                                // Add Date Section Button
-                                React.createElement('button', { 
-                                    onClick: handleAddDateSection,
-                                    className: "w-full py-4 border-2 border-dashed border-stone-300 rounded-2xl text-stone-400 font-bold text-sm hover:border-[#6B8E78] hover:text-[#6B8E78] hover:bg-white transition-all flex items-center justify-center gap-2"
-                                }, React.createElement(PlusCircle, { size: 18 }), "新增日期分組")
+                                )
+                                // Removed Add Date Section Button
                             )
                         )
                     ),
@@ -647,8 +637,8 @@
                 deleteExpenseId && React.createElement(ConfirmModal, { title: "確認刪除", message: "您確定要刪除這筆帳目嗎？此動作無法復原。", onClose: () => setDeleteExpenseId(null), onConfirm: executeDeleteExpense })
             );
         }
-
-        // --- 全新 Members Tab 組件 (Expanded and Fixed) ---
+        
+        // Members Tab
         function MembersTab({ project, expenses, myId, supabase, showPopup }) {
             const [selectedMemberId, setSelectedMemberId] = useState(myId || project.members[0].id);
             const [localNote, setLocalNote] = useState('');
@@ -656,10 +646,8 @@
             const [newTodo, setNewTodo] = useState('');
             const [isSaving, setIsSaving] = useState(false);
             
-            // 是否為自己的筆記
             const isOwnNote = selectedMemberId === myId;
 
-            // 切換成員時載入資料
             useEffect(() => {
                 const fetchNote = async () => {
                     const { data, error } = await supabase
@@ -673,7 +661,6 @@
                         setLocalNote(data.content || '');
                         setLocalTodos(data.todos || []);
                     } else {
-                        // 若無資料，預設為空
                         setLocalNote('');
                         setLocalTodos([]);
                     }
@@ -681,13 +668,11 @@
                 fetchNote();
             }, [selectedMemberId, project.id, supabase]);
 
-            // 手動儲存邏輯 (改為點擊按鈕觸發)
             const handleManualSave = async () => {
-                if (!isOwnNote) return; // 安全檢查：非本人無法儲存
+                if (!isOwnNote) return;
                 setIsSaving(true);
                 
                 try {
-                    // 先檢查是否存在
                     const { data: existing } = await supabase
                         .from('notes')
                         .select('id')
@@ -704,7 +689,6 @@
                         }).eq('id', existing.id);
                         error = res.error;
                     } else {
-                        // 修正：產生一個 id
                         const res = await supabase.from('notes').insert([{ 
                             id: crypto.randomUUID(), 
                             project_id: project.id, 
@@ -731,7 +715,6 @@
                 setLocalNote(e.target.value);
             };
 
-            // Todo: 新增
             const handleAddTodo = () => {
                 if (!isOwnNote) return;
                 if (!newTodo.trim()) return;
@@ -741,14 +724,12 @@
                 setNewTodo('');
             };
 
-            // Todo: 勾選
             const toggleTodo = (todoId) => {
                 if (!isOwnNote) return;
                 const updatedTodos = localTodos.map(t => t.id === todoId ? { ...t, done: !t.done } : t);
                 setLocalTodos(updatedTodos);
             };
 
-            // Todo: 刪除
             const deleteTodo = (todoId) => {
                 if (!isOwnNote) return;
                 const updatedTodos = localTodos.filter(t => t.id !== todoId);
@@ -761,18 +742,15 @@
                 const paidMap = {};
                 const costMap = {};
 
-                // Init categories
                 CATEGORIES.forEach(c => { paidMap[c.id] = 0; costMap[c.id] = 0; });
 
                 expenses.forEach(e => {
-                    // Paid
                     if (e.payer_id === selectedMemberId) {
                         paidTotal += e.amount;
                         if(paidMap[e.category_id] !== undefined) paidMap[e.category_id] += e.amount;
                         else paidMap['other'] = (paidMap['other'] || 0) + e.amount;
                     }
                     
-                    // Cost
                     let myShare = 0;
                     if (e.split_type === 'custom' && e.split_details) {
                         myShare = Number(e.split_details[selectedMemberId] || 0);
@@ -798,7 +776,6 @@
             }, [expenses, selectedMemberId]);
 
             return React.createElement('div', { className: "animate-zoom-in space-y-6" },
-                // 1. 成員切換器 (修正頂部間距與增加自我標示)
                 React.createElement('div', { className: "flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-2 px-2 pt-4" },
                     project.members.map(m => {
                         const isMe = m.id === myId;
@@ -809,7 +786,6 @@
                         },
                             React.createElement('div', { className: `w-14 h-14 rounded-full flex items-center justify-center text-xl shadow-sm border-2 transition-colors relative ${selectedMemberId === m.id ? 'bg-[#6B8E78] border-[#6B8E78] text-white' : 'bg-white border-white text-stone-500'}` }, 
                                 m.name[0],
-                                // 如果是本人，顯示星星標記
                                 isMe && React.createElement('div', { className: "absolute -top-1 -right-1 bg-yellow-400 text-white rounded-full p-0.5 border-2 border-white shadow-sm" }, 
                                     React.createElement(Star, { size: 10, fill: "currentColor" })
                                 )
@@ -822,9 +798,7 @@
                     })
                 ),
 
-                // 2. 雙區塊圖表 (新增 Legend)
                 React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
-                    // 左：已先付 (綠色)
                     React.createElement('div', { className: "bg-white rounded-3xl p-5 shadow-sm border border-stone-100 flex flex-col items-center text-center relative overflow-hidden" },
                         React.createElement('div', { className: "absolute top-0 left-0 right-0 h-1.5 bg-[#6B8E78]" }),
                         React.createElement('p', { className: "text-xs font-bold text-stone-400 mt-2" }, "明細內已先付款"),
@@ -839,7 +813,6 @@
                             : React.createElement('div', { className: "h-full flex items-center justify-center text-xs text-stone-300" }, "無付款紀錄")
                         )
                     ),
-                    // 右：實際花費 (藍色/橙色)
                     React.createElement('div', { className: "bg-white rounded-3xl p-5 shadow-sm border border-stone-100 flex flex-col items-center text-center relative overflow-hidden" },
                         React.createElement('div', { className: "absolute top-0 left-0 right-0 h-1.5 bg-[#88B0C9]" }),
                         React.createElement('p', { className: "text-xs font-bold text-stone-400 mt-2" }, "實際總花費 (結算後)"),
@@ -856,11 +829,9 @@
                     )
                 ),
 
-                // 3. 隨身筆記本與代辦事項 (修正標題遮擋，改為手動儲存按鈕)
                 React.createElement('div', { className: `rounded-2xl p-6 shadow-sm border relative overflow-hidden transition-colors ${isOwnNote ? 'bg-[#FFFDE7] border-yellow-200/50' : 'bg-stone-50 border-stone-200'}` },
                     React.createElement('div', { className: `absolute top-0 left-0 w-full h-14 border-b ${isOwnNote ? 'bg-[#F0F4C3]/30 border-[#E6EE9C]' : 'bg-stone-100/50 border-stone-200'}` }), 
                     
-                    // 筆記標題區 + 儲存按鈕
                     React.createElement('div', { className: `flex items-center gap-2 mb-4 relative z-10 ${isOwnNote ? 'text-yellow-800/70' : 'text-stone-500'}` },
                         React.createElement(PenTool, { size: 16 }),
                         React.createElement('span', { className: "font-bold text-sm" }, isOwnNote ? "隨身筆記本" : "夥伴的筆記本 (僅供閱覽)"),
@@ -874,7 +845,6 @@
                         ) : React.createElement('div', { className: "ml-auto flex items-center gap-1 text-xs text-stone-400 font-medium bg-stone-100 px-2 py-1 rounded" }, React.createElement(Lock, { size: 10 }), "唯讀模式")
                     ),
 
-                    // 文字筆記區 (有底線樣式)
                     React.createElement('textarea', {
                         value: localNote,
                         onChange: handleNoteChange,
@@ -883,17 +853,14 @@
                         className: `lined-paper w-full min-h-[160px] bg-transparent border-none outline-none text-base font-medium resize-none mb-6 leading-8 tracking-wide ${isOwnNote ? 'text-stone-700 placeholder-yellow-700/30' : 'text-stone-500 cursor-default opacity-80'}`
                     }),
 
-                    // 分隔線
                     React.createElement('div', { className: `border-t border-dashed my-4 ${isOwnNote ? 'border-yellow-300' : 'border-stone-300'}` }),
 
-                    // 代辦事項區
                     React.createElement('div', { className: "relative z-10" },
                         React.createElement('div', { className: `flex items-center gap-2 mb-3 ${isOwnNote ? 'text-yellow-800/70' : 'text-stone-500'}` },
                             React.createElement(CheckSquare, { size: 16 }),
                             React.createElement('span', { className: "font-bold text-sm" }, "代辦事項")
                         ),
                         
-                        // 輸入框 (僅本人可見)
                         isOwnNote && React.createElement('div', { className: "flex gap-2 mb-4" },
                             React.createElement('input', {
                                 value: newTodo,
@@ -909,7 +876,6 @@
                             }, React.createElement(Plus, { size: 20 }))
                         ),
 
-                        // 列表
                         React.createElement('div', { className: "space-y-2" },
                             localTodos.length === 0 ? React.createElement('div', { className: `text-center text-xs py-2 italic ${isOwnNote ? 'text-yellow-700/30' : 'text-stone-400'}` }, "尚無待辦事項") :
                             localTodos.map(todo => (
@@ -936,9 +902,8 @@
             );
         }
 
-        // --- ExpenseDetailModal (unchanged) ---
+        // Expense Detail Modal
         function ExpenseDetailModal({ expense, project, onClose, onEdit, onDelete }) {
-             // ... (Code from previous response, unchanged)
              const category = CATEGORIES.find(c => c.id === expense.category_id) || CATEGORIES[5];
             const payer = project.members.find(m => m.id === expense.payer_id)?.name || '未知';
             const currency = expense.original_currency || 'TWD';
@@ -1062,6 +1027,8 @@
             );
         }
 
+        // ... (MemberSelectModal and ExpenseDetailModal unchanged) ...
+
         // --- 新的 ExpenseItem 組件 (Added Draggable Support) ---
         function ExpenseItem({ expense, project, onClick, onEdit, onDelete, draggable }) {
             const category = CATEGORIES.find(c => c.id === expense.category_id) || CATEGORIES[5];
@@ -1165,8 +1132,8 @@
             const handleSubmit = () => {
                 if (!data.title || !data.title.trim()) { alert("請輸入項目名稱"); return; }
                 if (!data.amount) { alert("請輸入金額"); return; }
-                if (!data.date) { alert("請選擇日期"); return; }
-
+                // Removed mandatory date check
+                
                 const finalAmount = Math.round(Number(data.amount) * exchangeRate);
                 
                 // --- Activity Log Logic ---
@@ -1272,7 +1239,7 @@
 
                     // 1.5 Date Picker (New)
                     React.createElement('div', { className: "mb-6" },
-                        React.createElement('label', { className: "text-xs font-bold text-stone-400 mb-2 block" }, "消費日期"),
+                        React.createElement('label', { className: "text-xs font-bold text-stone-400 mb-2 block" }, "消費日期 (非必填, 記錄用)"),
                         React.createElement('input', {
                             type: "date",
                             value: data.date,
@@ -1292,7 +1259,9 @@
                             className: "w-full p-3 border-b-2 border-stone-100 focus:border-[#6B8E78] outline-none text-lg font-bold text-stone-700 placeholder-stone-300 bg-transparent transition-colors"
                         })
                     ),
-
+                    
+                    // ... (rest of the form unchanged)
+                    
                     // 3. 分類
                     React.createElement('div', { className: "mb-8" },
                         React.createElement('label', { className: "text-xs font-bold text-stone-400 mb-3 block" }, "分類"),
