@@ -51,7 +51,7 @@
             Plus, Users, ArrowRight, Trash2, PieChart, List, DollarSign, Activity, Calendar, 
             ArrowLeft, Settings, Share2, Edit2, Check, X, Image as ImageIcon, Camera, RefreshCw,
             Crown, Upload, Info, Link as LinkIcon, AlertTriangle, UserCheck, Utensils, Bus, Bed, Ticket, ShoppingBag, Box,
-            Coffee, Beer, Music, Map
+            Coffee, Beer, Music, Map, RotateCcw
         } from 'https://esm.sh/lucide-react@0.263.1';
         import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'https://esm.sh/recharts@2.7.2?deps=react@18.2.0,react-dom@18.2.0';
 
@@ -230,14 +230,14 @@
             return React.createElement('div', { className: "h-screen flex items-center justify-center text-center p-6" }, "請設定 Supabase");
         }
 
-        // --- 1. 專案列表 (優化背景色) ---
+        // --- 1. 專案列表 (優化卡片特效) ---
         function ProjectList({ projects, onCreate, onSelect, onDelete, onUpdate, supabase }) {
             const [modalMode, setModalMode] = useState(null); 
             const [targetProject, setTargetProject] = useState(null);
             const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
             return React.createElement('div', { className: "p-4 md:p-8 max-w-6xl mx-auto min-h-screen flex flex-col pt-12" },
-                // 外層銀框容器 (保持原樣)
+                // 外層銀框容器
                 React.createElement('div', { className: "silver-frame rounded-[2.5rem] p-6 md:p-10 shadow-2xl relative min-h-[600px]" },
                     
                     // Header
@@ -254,7 +254,7 @@
                         }, React.createElement(Plus, { size: 20 }), "新增行程")
                     ),
 
-                    // 內層列表區 (改為莫蘭迪淺綠底 #EBF0ED)
+                    // 內層列表區
                     React.createElement('div', { className: "rounded-2xl p-4 md:p-8 bg-[#EBF0ED] min-h-[400px] border border-stone-200/30" },
                         projects.length === 0 
                         ? React.createElement('div', { className: "flex flex-col items-center justify-center h-full py-24 opacity-40" }, 
@@ -274,15 +274,17 @@
                                 return React.createElement('div', { 
                                     key: p.id, 
                                     onClick: () => onSelect(p), 
-                                    className: "relative w-full h-64 rounded-3xl overflow-hidden shadow-md cursor-pointer group transform transition-all duration-300 hover:scale-[1.02] hover:shadow-xl",
+                                    className: "relative w-full h-64 rounded-3xl overflow-hidden shadow-md cursor-pointer group hover:shadow-xl transition-all duration-300",
                                 },
+                                    // 背景圖 (移除放大特效)
                                     React.createElement('div', { 
-                                        className: "absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110",
+                                        className: "absolute inset-0 bg-cover bg-center",
                                         style: { backgroundImage: `url(${bg})` }
                                     }),
-                                    React.createElement('div', { className: "absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" }),
+                                    // 漸層遮罩 (Hover 時變亮/增加通透感)
+                                    React.createElement('div', { className: "absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-all duration-500 group-hover:from-black/60 group-hover:via-black/10 group-hover:bg-white/5" }),
                                     
-                                    React.createElement('div', { className: "absolute inset-0 p-6 flex flex-col justify-between" },
+                                    React.createElement('div', { className: "absolute inset-0 p-6 flex flex-col justify-between z-10" },
                                         // Top
                                         React.createElement('div', { className: "flex justify-between items-start" },
                                             React.createElement('div', { className: "bg-black/30 backdrop-blur-md px-3 py-1 rounded-full border border-white/10" },
@@ -295,7 +297,7 @@
                                         ),
                                         // Bottom
                                         React.createElement('div', null,
-                                            React.createElement('h3', { className: "text-white font-bold text-2xl mb-3 drop-shadow-lg leading-tight truncate" }, p.name),
+                                            React.createElement('h3', { className: "text-white font-bold text-2xl mb-3 drop-shadow-lg leading-tight truncate group-hover:text-white/95" }, p.name),
                                             
                                             React.createElement('div', { className: "flex items-center justify-between" },
                                                 React.createElement('div', { className: "flex items-center gap-3 text-xs font-bold text-stone-200 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 shadow-sm" },
@@ -336,7 +338,7 @@
             );
         }
 
-        // --- 2. 身分選擇視窗 (優化: 點擊外部關閉 / 去灰框 / 文案修改) ---
+        // --- 2. 身分選擇視窗 ---
         function MemberSelectModal({ project, onClose, onConfirm }) {
             return React.createElement('div', { 
                 onClick: onClose, // 點擊外部關閉
@@ -349,7 +351,6 @@
                     React.createElement('div', { className: "relative text-center mb-8" },
                         React.createElement('div', { className: "w-16 h-16 bg-[#6B8E78] text-white rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-lg shadow-teal-700/30" }, "?"),
                         React.createElement('h2', { className: "text-2xl font-bold text-stone-800" }, "請問您是哪位旅伴？")
-                        // 移除副標題
                     ),
 
                     React.createElement('div', { className: "grid grid-cols-2 gap-3 mb-6 max-h-60 overflow-y-auto pr-1" },
@@ -373,9 +374,9 @@
             );
         }
 
-        // --- 3. 儀表板 ---
+        // --- 3. 儀表板 (維持不變) ---
         function Dashboard({ project, userId, onBack, showToast, onUpdateProject, onDeleteProject, supabase }) {
-            // ... (Dashboard 代碼保持不變，因為此次需求集中在列表與 Modal) ...
+            // ... (省略內部邏輯，保持不變)
             const [expenses, setExpenses] = useState([]);
             const [tab, setTab] = useState('list');
             const [showAdd, setShowAdd] = useState(false);
@@ -556,8 +557,9 @@
             );
         }
 
-        // --- 4. 記帳面板 (去灰框) ---
+        // --- 4. 記帳面板 (維持不變) ---
         function ExpenseModal({ project, onClose, onSubmit, supabase, defaultPayer }) {
+            // ... (省略內部邏輯，保持不變)
             const [data, setData] = useState({ title: '', amount: '', category_id: 'food', payer_id: defaultPayer || project.members[0].id, split_type: 'equal', involved_ids: project.members.map(m=>m.id) });
             const [uploading, setUploading] = useState(false);
 
@@ -667,7 +669,7 @@
             );
         }
 
-        // --- 共用組件: 確認視窗 (去灰框 / 點擊外部關閉) ---
+        // --- 共用組件: 確認視窗 ---
         function ConfirmModal({ title, message, onClose, onConfirm }) {
             return React.createElement('div', { 
                 onClick: onClose, // 點擊外部關閉
@@ -688,7 +690,7 @@
             );
         }
 
-        // --- 編輯/新增行程視窗 (優化: 去灰框 / 點擊外部關閉 / 新的圖片上傳 UI) ---
+        // --- 編輯/新增行程視窗 (重構封面照片區) ---
         function ProjectModal({ mode, project, onClose, onSubmit, supabase }) {
             const [name, setName] = useState(project?.name || '');
             const [members, setMembers] = useState(project?.members?.map(m => m.name) || ['', '']);
@@ -744,30 +746,42 @@
                         mode === 'create' && React.createElement('div', null, 
                             React.createElement('label', { className: "block text-sm font-bold text-stone-500 mb-2 ml-1" }, "成員 (第一位為主辦人)"),
                             React.createElement('div', { className: "grid grid-cols-2 gap-3" },
-                                members.map((m, i) => React.createElement('input', { key: i, className: `w-full border p-3 rounded-2xl text-sm ${i===0?'border-yellow-300 bg-yellow-50 focus:ring-yellow-200':'border-stone-200 focus:ring-[#6B8E78]'} outline-none font-medium`, placeholder: i===0?"👑 主辦人":`夥伴 ${i+1}`, value: m, onChange: e => { const n = [...members]; n[i] = e.target.value; setMembers(n); } })),
+                                members.map((m, i) => React.createElement('input', { key: i, className: `w-full border p-3 rounded-2xl text-sm ${i===0?'border-yellow-300 bg-yellow-50 focus:ring-yellow-200':'border-stone-200 focus:ring-[#6B8E78]'} outline-none font-medium`, placeholder: i===0?"👑 主辦人":`🎒 旅伴 ${i}`, value: m, onChange: e => { const n = [...members]; n[i] = e.target.value; setMembers(n); } })),
                                 React.createElement('button', { onClick: () => setMembers([...members, '']), className: "border border-dashed border-stone-300 p-3 rounded-2xl text-stone-400 text-sm hover:bg-stone-50 transition-colors font-medium bg-white" }, "+ 增加")
                             )
                         ),
                         React.createElement('div', null,
-                             React.createElement('label', { className: "block text-sm font-bold text-stone-500 mb-2 ml-1" }, "封面照片"),
+                             // Header Row: Label + Random Button
+                             React.createElement('div', { className: "flex justify-between items-end mb-2 ml-1" },
+                                React.createElement('label', { className: "block text-lg font-bold text-stone-600" }, "封面照片"),
+                                React.createElement('button', { 
+                                     onClick: () => { const rnd = ['https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800','https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800','https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800'][Math.floor(Math.random()*3)]; setImg(rnd); setPreview(rnd); },
+                                     className: "text-[#6B8E78] hover:text-[#5A7A66] flex items-center gap-1 transition-colors text-xs font-bold"
+                                 }, React.createElement(RefreshCw, { size: 14 }), "隨機圖片")
+                             ),
+
+                             // Preview Box
                              React.createElement('div', { className: "h-48 rounded-3xl bg-stone-100 relative overflow-hidden group mb-4 shadow-inner border border-stone-200", style: { backgroundImage: `url(${preview})`, backgroundSize: 'cover', backgroundPosition: 'center' } },
                                 React.createElement('div', { className: "absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" },
                                     React.createElement('span', { className: "text-white text-sm font-bold" }, "預覽")
                                 )
                              ),
                              
-                             // 簡約文字連結風格
-                             React.createElement('div', { className: "flex justify-between items-center border-t border-stone-100 pt-3" },
-                                React.createElement('label', { className: "cursor-pointer text-stone-500 hover:text-[#6B8E78] text-sm font-bold flex items-center gap-2 transition-colors group" },
+                             // Actions Row: Upload + Reset
+                             React.createElement('div', { className: "flex justify-between items-center pt-2" },
+                                React.createElement('label', { className: "cursor-pointer text-stone-600 hover:text-[#6B8E78] text-sm font-bold flex items-center gap-2 transition-colors group" },
                                     uploading ? React.createElement(RefreshCw, { size: 16, className: "animate-spin text-[#6B8E78]" }) : React.createElement(Camera, { size: 18, className: "group-hover:scale-110 transition-transform" }), 
-                                    uploading ? "上傳中..." : "上傳自己的圖片",
+                                    uploading ? "上傳中..." : "上傳圖片",
                                     React.createElement('input', { type: "file", className: "hidden", accept: "image/*", onChange: handleUpload, disabled: uploading })
                                 ),
                                 React.createElement('button', { 
-                                     onClick: () => { const rnd = ['https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800','https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800','https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800'][Math.floor(Math.random()*3)]; setImg(rnd); setPreview(rnd); },
+                                     onClick: () => { setImg(DEFAULT_IMG); setPreview(DEFAULT_IMG); },
                                      className: "text-stone-400 hover:text-stone-600 text-sm font-bold flex items-center gap-2 transition-colors group"
-                                 }, React.createElement(RefreshCw, { size: 16, className: "group-hover:rotate-180 transition-transform duration-500" }), "隨機圖片")
-                             )
+                                 }, React.createElement(RotateCcw, { size: 16, className: "group-hover:-rotate-90 transition-transform duration-500" }), "重設圖片")
+                             ),
+                             
+                             // Note
+                             React.createElement('p', { className: "text-xs text-stone-400 mt-2 ml-1" }, "建議比例 16:9，最佳尺寸 800x450 像素")
                         ),
                         React.createElement('div', { className: "flex justify-end gap-3 pt-6 border-t border-stone-100" },
                             React.createElement('button', { onClick: onClose, className: "px-6 py-3 text-stone-500 font-bold hover:bg-stone-50 rounded-2xl transition-colors" }, "取消"),
