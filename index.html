@@ -69,7 +69,7 @@
             ArrowLeft, Settings, Share2, Edit2, Check, X, Image as ImageIcon, Camera, RefreshCw,
             Crown, Upload, Info, Link as LinkIcon, AlertTriangle, UserCheck, Utensils, Bus, Bed, Ticket, ShoppingBag, Box,
             Coffee, Beer, Music, Map, RotateCcw, UserPlus, Globe, FileText, AlertCircle, Clock, History, ExternalLink,
-            PenTool, Save, CheckSquare, PlusCircle, Star, Lock
+            PenTool, Save, CheckSquare, PlusCircle, Star, Lock, Filter, Search, CalendarDays, GripVertical
         } from 'https://esm.sh/lucide-react@0.263.1';
         import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'https://esm.sh/recharts@2.7.2?deps=react@18.2.0,react-dom@18.2.0';
 
@@ -139,6 +139,7 @@
             return `${symbol} ${new Intl.NumberFormat('zh-TW').format(val)}`;
         };
         const formatDate = (d) => new Date(d).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const formatDateOnly = (d) => new Date(d).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' }); // 2/17
 
         const compressImage = (file) => new Promise((resolve) => {
             const reader = new FileReader();
@@ -328,8 +329,9 @@
             );
         }
         function MemberSelectModal({ project, onClose, onConfirm, onJoinNew }) {
+             // ... (MemberSelectModal code unchanged) ...
              const [isJoining, setIsJoining] = useState(false); const [newName, setNewName] = useState('');
-            return React.createElement('div', { onClick: onClose, className: "fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" },
+             return React.createElement('div', { onClick: onClose, className: "fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" },
                 React.createElement('div', { onClick: e => e.stopPropagation(), className: "clean-modal w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]" },
                     React.createElement('div', { className: "relative text-center mb-6 shrink-0" }, React.createElement('h2', { className: "text-xl font-bold text-[#6B8E78] mb-1 tracking-wide" }, isJoining ? "加入旅程" : "歡迎加入旅程!"), React.createElement('p', { className: "text-2xl font-bold text-stone-800" }, isJoining ? "請輸入您的暱稱" : "請問您是哪位旅伴？")),
                     isJoining ? (React.createElement('div', { className: "flex-1 flex flex-col gap-4 animate-fadeIn" }, React.createElement('input', { autoFocus: true, value: newName, onChange: (e) => setNewName(e.target.value), placeholder: "例如：小明", className: "w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl text-lg text-center font-bold text-stone-700 focus:ring-2 focus:ring-[#6B8E78] outline-none" }), React.createElement('button', { onClick: () => { if(newName.trim()) onJoinNew(newName.trim()); }, disabled: !newName.trim(), className: "w-full py-4 bg-[#6B8E78] text-white font-bold rounded-2xl shadow-lg hover:bg-[#5A7A66] transition-all disabled:opacity-50" }, "確認加入"), React.createElement('button', { onClick: () => setIsJoining(false), className: "w-full py-3 text-stone-400 font-bold hover:text-stone-600" }, "返回清單"))) : (React.createElement('div', { className: "flex-1 overflow-y-auto pr-1" }, React.createElement('div', { className: "grid grid-cols-2 gap-3 pb-2" }, project.members.map((m, index) => React.createElement('button', { key: m.id, onClick: () => onConfirm(m.id), className: "flex flex-col items-center p-3 rounded-2xl bg-stone-50 border border-stone-100 hover:border-[#6B8E78] hover:bg-green-50/50 transition-all group relative overflow-hidden shadow-sm" }, React.createElement('span', { className: "text-xs text-stone-400 font-medium group-hover:text-[#6B8E78]" }, index === 0 ? "👑 主辦人" : `🎒 旅伴 ${index}`), React.createElement('div', { className: "w-full h-px bg-stone-300/50 my-2" }), React.createElement('div', { className: "w-12 h-12 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-600 font-bold group-hover:bg-[#6B8E78] group-hover:border-transparent group-hover:text-white transition-all text-lg shadow-sm" }, m.name[0]), React.createElement('div', { className: "w-full h-px bg-stone-300/50 my-2" }), React.createElement('span', { className: "text-sm font-bold text-stone-700" }, m.name))), React.createElement('button', { onClick: () => setIsJoining(true), className: "flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-stone-300 hover:border-[#6B8E78] hover:bg-stone-50 transition-all group" }, React.createElement('div', { className: "w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-400 mb-2 group-hover:text-[#6B8E78]" }, React.createElement(UserPlus, { size: 20 })), React.createElement('span', { className: "text-sm font-bold text-stone-500 group-hover:text-stone-700" }, "不在名單上？"), React.createElement('span', { className: "text-xs text-stone-400" }, "點擊建立身分"))))), !isJoining && React.createElement('button', { onClick: onClose, className: "w-full py-3 text-stone-400 text-sm hover:text-stone-600 font-medium mt-4 shrink-0" }, "取消並返回")
@@ -337,7 +339,7 @@
             );
         }
 
-        // --- 3. 儀表板 ---
+        // --- 3. 儀表板 (Updated) ---
         function Dashboard({ project, userId, onBack, showPopup, onUpdateProject, onDeleteProject, supabase }) {
             const [expenses, setExpenses] = useState([]);
             const [tab, setTab] = useState('list');
@@ -346,17 +348,86 @@
             const [viewExpense, setViewExpense] = useState(null); 
             const [deleteExpenseId, setDeleteExpenseId] = useState(null); 
             
+            // New States for Filtering & Grouping
+            const [showFilter, setShowFilter] = useState(false);
+            const [filters, setFilters] = useState({ category: '', payer: '', keyword: '', date: '' });
+            const [tempDates, setTempDates] = useState([]); // Temporary empty date sections
+            
             const myId = localStorage.getItem(`member_${project.id}`);
 
             useEffect(() => {
                 const fetchExp = async () => {
-                    const { data } = await supabase.from('expenses').select('*').eq('project_id', project.id).order('date', { ascending: false });
-                    setExpenses(data || []);
+                    // Fetch all expenses, client-side sort/filter for flexibility
+                    const { data } = await supabase.from('expenses').select('*').eq('project_id', project.id);
+                    // Sort locally by date desc then created_at desc as default
+                    const sorted = (data || []).sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+                    setExpenses(sorted);
                 };
                 fetchExp();
                 const sub = supabase.channel(`exp-${project.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchExp).subscribe();
                 return () => supabase.removeChannel(sub);
             }, [project.id]);
+
+            // Filter Logic
+            const filteredExpenses = useMemo(() => {
+                return expenses.filter(e => {
+                    const matchCat = !filters.category || e.category_id === filters.category;
+                    const matchPayer = !filters.payer || e.payer_id === filters.payer;
+                    const matchKey = !filters.keyword || e.title.toLowerCase().includes(filters.keyword.toLowerCase());
+                    // Create date filter: compare YYYY-MM-DD of created_at
+                    const eCreateDate = new Date(e.created_at).toISOString().split('T')[0];
+                    const matchDate = !filters.date || eCreateDate === filters.date;
+                    
+                    return matchCat && matchPayer && matchKey && matchDate;
+                });
+            }, [expenses, filters]);
+
+            const hasActiveFilter = filters.category || filters.payer || filters.keyword || filters.date;
+
+            // Grouping Logic (Only when no filter)
+            const groupedExpenses = useMemo(() => {
+                if (hasActiveFilter) return null;
+                const groups = {};
+                
+                // Add temp dates first so they appear even if empty
+                tempDates.forEach(d => { if(!groups[d]) groups[d] = []; });
+
+                filteredExpenses.forEach(e => {
+                    // Use 'date' field first, fallback to 'created_at' date part
+                    const d = e.date ? e.date : new Date(e.created_at).toISOString().split('T')[0];
+                    if (!groups[d]) groups[d] = [];
+                    groups[d].push(e);
+                });
+                
+                // Sort keys (dates) - let's do descending (latest first) or user preference? 
+                // Usually travel itineraries are chronological (ascending) or reverse. 
+                // Let's stick to Descending (newest on top) as per standard feed, 
+                // but user mentioned "2/17" itinerary style. Let's do Ascending for "Travel Dates"?
+                // Actually, standard expense apps are usually Descending. Let's keep Descending.
+                // Wait, if it's an itinerary, maybe Ascending is better? 
+                // Let's do Descending for now to match default 'created_at' sort.
+                return Object.keys(groups).sort((a,b) => new Date(b) - new Date(a)).reduce((obj, key) => {
+                    obj[key] = groups[key];
+                    return obj;
+                }, {});
+            }, [filteredExpenses, hasActiveFilter, tempDates]);
+
+            // Drag & Drop Handlers
+            const handleDropOnDate = async (e, targetDate) => {
+                e.preventDefault();
+                const expenseId = e.dataTransfer.getData("text/plain");
+                if (!expenseId) return;
+
+                // Optimistic Update
+                setExpenses(prev => prev.map(ex => ex.id === expenseId ? { ...ex, date: targetDate } : ex));
+
+                // DB Update
+                const { error } = await supabase.from('expenses').update({ date: targetDate }).eq('id', expenseId);
+                if (error) {
+                    alert("更新失敗");
+                    // Revert if needed (simplified here)
+                }
+            };
 
             const stats = useMemo(() => {
                 let total = 0; const catMap = {};
@@ -408,6 +479,13 @@
                 setDeleteExpenseId(null);
             };
 
+            const handleAddDateSection = () => {
+                const date = prompt("請輸入日期 (YYYY-MM-DD)", new Date().toISOString().split('T')[0]);
+                if (date && !tempDates.includes(date)) {
+                    setTempDates(prev => [...prev, date].sort((a,b) => new Date(b) - new Date(a)));
+                }
+            };
+
             return React.createElement('div', { className: "max-w-md mx-auto bg-white min-h-screen flex flex-col shadow-2xl relative" },
                 // Header
                 React.createElement('div', { className: "sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-stone-100 p-4 flex justify-between items-center" },
@@ -436,28 +514,129 @@
                 // Content
                 React.createElement('div', { className: "flex-1 p-4 bg-[#F5F5F2] overflow-y-auto" },
                     // 1. 明細列表
-                    tab === 'list' && React.createElement('div', { className: "space-y-4 animate-zoom-in min-h-[50vh]" },
+                    tab === 'list' && React.createElement('div', { className: "animate-zoom-in min-h-[50vh] relative" },
+                        // Filter Toggle & Bar
+                        React.createElement('div', { className: "mb-4" },
+                            React.createElement('div', { className: "flex justify-end mb-2" },
+                                React.createElement('button', { 
+                                    onClick: () => setShowFilter(!showFilter),
+                                    className: `flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${showFilter || hasActiveFilter ? 'bg-[#6B8E78] text-white' : 'bg-white text-stone-500 border border-stone-200'}`
+                                }, React.createElement(Filter, { size: 14 }), "篩選", hasActiveFilter && React.createElement('span', { className: "w-2 h-2 rounded-full bg-yellow-300" }))
+                            ),
+                            showFilter && React.createElement('div', { className: "bg-white p-4 rounded-2xl shadow-sm border border-stone-100 space-y-3 mb-4 animate-fade-in" },
+                                React.createElement('div', { className: "grid grid-cols-2 gap-3" },
+                                    React.createElement('select', { 
+                                        value: filters.category, 
+                                        onChange: e => setFilters(p => ({...p, category: e.target.value})),
+                                        className: "w-full p-2 bg-stone-50 rounded-lg text-sm text-stone-600 font-bold outline-none border border-stone-100 focus:border-[#6B8E78]"
+                                    }, 
+                                        React.createElement('option', { value: "" }, "全部分類"),
+                                        CATEGORIES.map(c => React.createElement('option', { key: c.id, value: c.id }, c.name))
+                                    ),
+                                    React.createElement('select', { 
+                                        value: filters.payer, 
+                                        onChange: e => setFilters(p => ({...p, payer: e.target.value})),
+                                        className: "w-full p-2 bg-stone-50 rounded-lg text-sm text-stone-600 font-bold outline-none border border-stone-100 focus:border-[#6B8E78]"
+                                    }, 
+                                        React.createElement('option', { value: "" }, "全部付款人"),
+                                        project.members.map(m => React.createElement('option', { key: m.id, value: m.id }, m.name))
+                                    )
+                                ),
+                                React.createElement('div', { className: "relative" },
+                                    React.createElement(Search, { size: 14, className: "absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" }),
+                                    React.createElement('input', { 
+                                        value: filters.keyword,
+                                        onChange: e => setFilters(p => ({...p, keyword: e.target.value})),
+                                        placeholder: "搜尋項目名稱...",
+                                        className: "w-full pl-9 p-2 bg-stone-50 rounded-lg text-sm font-bold text-stone-700 outline-none border border-stone-100 focus:border-[#6B8E78]"
+                                    })
+                                ),
+                                React.createElement('div', { className: "flex items-center gap-2" },
+                                    React.createElement('label', { className: "text-xs font-bold text-stone-400 shrink-0" }, "建立日期:"),
+                                    React.createElement('input', { 
+                                        type: "date",
+                                        value: filters.date,
+                                        onChange: e => setFilters(p => ({...p, date: e.target.value})),
+                                        className: "flex-1 p-2 bg-stone-50 rounded-lg text-sm font-bold text-stone-600 outline-none border border-stone-100 focus:border-[#6B8E78]"
+                                    })
+                                ),
+                                React.createElement('div', { className: "flex justify-end pt-2 border-t border-stone-50" },
+                                    React.createElement('button', { 
+                                        onClick: () => setFilters({ category: '', payer: '', keyword: '', date: '' }),
+                                        className: "text-xs text-red-400 font-bold hover:text-red-500"
+                                    }, "清除篩選")
+                                )
+                            )
+                        ),
+
                         expenses.length === 0 ? React.createElement('div', { className: "flex flex-col items-center justify-center py-20 opacity-80" }, React.createElement('img', { src: EMPTY_IMG, className: "w-32 h-32 mb-4 opacity-80 mix-blend-multiply" }), React.createElement('h3', { className: "text-stone-600 font-bold text-lg" }, "這裡空空的"), React.createElement('p', { className: "text-stone-400 text-sm mt-1" }, "點擊右上方「+」記下第一筆花費吧！")) :
-                        expenses.map(e => React.createElement(ExpenseItem, { key: e.id, expense: e, project: project, onClick: () => setViewExpense(e), onEdit: () => { setEditingExpense(e); setShowAdd(true); }, onDelete: () => handleDeleteRequest(e.id) }))
+                        
+                        // Render List
+                        hasActiveFilter ? (
+                            // Flat List for Filter Mode
+                            React.createElement('div', { className: "space-y-4" },
+                                filteredExpenses.length > 0 ? filteredExpenses.map(e => React.createElement(ExpenseItem, { key: e.id, expense: e, project: project, onClick: () => setViewExpense(e), onEdit: () => { setEditingExpense(e); setShowAdd(true); }, onDelete: () => handleDeleteRequest(e.id), draggable: false }))
+                                : React.createElement('div', { className: "text-center py-10 text-stone-400 text-sm font-bold" }, "沒有符合篩選的項目")
+                            )
+                        ) : (
+                            // Grouped List for Date Sections
+                            React.createElement('div', { className: "space-y-8 pb-20" },
+                                Object.entries(groupedExpenses || {}).map(([date, exps]) => 
+                                    React.createElement('div', { 
+                                        key: date,
+                                        onDragOver: (e) => e.preventDefault(),
+                                        onDrop: (e) => handleDropOnDate(e, date),
+                                        className: "transition-colors rounded-3xl"
+                                    },
+                                        // Silver Line Header
+                                        React.createElement('div', { className: "flex items-center justify-center gap-4 mb-4 opacity-80" },
+                                            React.createElement('div', { className: "h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent w-full" }),
+                                            React.createElement('div', { className: "text-stone-500 font-bold text-sm tracking-widest whitespace-nowrap flex items-center gap-2" },
+                                                React.createElement(CalendarDays, { size: 14 }),
+                                                formatDateOnly(date)
+                                            ),
+                                            React.createElement('div', { className: "h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent w-full" })
+                                        ),
+                                        
+                                        // Expense Items
+                                        React.createElement('div', { className: "space-y-4 min-h-[60px]" },
+                                            exps.length > 0 ? exps.map(e => 
+                                                React.createElement(ExpenseItem, { 
+                                                    key: e.id, 
+                                                    expense: e, 
+                                                    project: project, 
+                                                    onClick: () => setViewExpense(e), 
+                                                    onEdit: () => { setEditingExpense(e); setShowAdd(true); }, 
+                                                    onDelete: () => handleDeleteRequest(e.id),
+                                                    draggable: true
+                                                })
+                                            ) : React.createElement('div', { className: "h-16 border-2 border-dashed border-stone-200 rounded-2xl flex items-center justify-center text-xs text-stone-400 font-bold" }, "拖曳卡片至此")
+                                        )
+                                    )
+                                ),
+                                // Add Date Section Button
+                                React.createElement('button', { 
+                                    onClick: handleAddDateSection,
+                                    className: "w-full py-4 border-2 border-dashed border-stone-300 rounded-2xl text-stone-400 font-bold text-sm hover:border-[#6B8E78] hover:text-[#6B8E78] hover:bg-white transition-all flex items-center justify-center gap-2"
+                                }, React.createElement(PlusCircle, { size: 18 }), "新增日期分組")
+                            )
+                        )
                     ),
 
-                    // 2. 總覽
+                    // ... (Other Tabs Unchanged) ...
                     tab === 'overview' && React.createElement('div', { className: "space-y-4 animate-zoom-in" },
                         React.createElement('div', { className: "text-white p-6 rounded-3xl shadow-lg text-center relative overflow-hidden", style: { background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})` } }, React.createElement('p', { className: "text-sm opacity-80 mb-1" }, "本次行程總花費"), React.createElement('h2', { className: "text-4xl font-bold tracking-tight" }, formatMoney(stats.total)), React.createElement(Activity, { className: "absolute -right-4 -bottom-4 text-white opacity-10 w-32 h-32" })),
                         React.createElement('div', { className: "bg-white p-5 rounded-3xl shadow-sm border border-stone-100" }, React.createElement('h3', { className: "font-bold text-stone-700 mb-4 flex items-center gap-2" }, React.createElement(PieChart, { size: 18 }), "類別分析"), React.createElement('div', { className: "h-64" }, React.createElement(ResponsiveContainer, null, React.createElement(RePieChart, null, React.createElement(Pie, { data: stats.charts, dataKey: "value", cx: "50%", cy: "50%", innerRadius: 60, outerRadius: 80, paddingAngle: 5 }, stats.charts.map((e,i)=>React.createElement(Cell, { key: i, fill: e.color }))), React.createElement(ReTooltip), React.createElement(Legend)))))
                     ),
 
-                    // 3. 人員 (全新，使用 notes 資料表，傳入 showPopup)
                     tab === 'members' && React.createElement(MembersTab, { project, expenses, myId, supabase, showPopup }),
 
-                    // 4. 結算
                     tab === 'settle' && React.createElement('div', { className: "space-y-4 animate-zoom-in" },
                         React.createElement('div', { className: "p-4 rounded-xl border bg-[#F0F4F2] border-[#D1DBD6]" }, React.createElement('h3', { className: "font-bold mb-1 text-[#4A6756] flex items-center gap-2" }, React.createElement(Activity, { size: 18 }), "最佳化建議"), React.createElement('p', { className: "text-xs text-[#6B8E78]" }, "系統已自動計算最短還款路徑")),
                         debts.length === 0 ? React.createElement('div', { className: "text-center py-10 bg-white rounded-2xl shadow-sm" }, "帳目已結清 🎉") :
                         debts.map((d, i) => React.createElement('div', { key: i, className: "bg-white p-4 rounded-2xl shadow-sm border border-stone-100 flex items-center justify-between" }, React.createElement('div', { className: "flex items-center gap-3" }, React.createElement('span', { className: "font-bold text-stone-700" }, project.members.find(m=>m.id===d.from)?.name), React.createElement(ArrowRight, { size: 16, className: "text-stone-300" }), React.createElement('span', { className: "font-bold text-stone-700" }, project.members.find(m=>m.id===d.to)?.name)), React.createElement('span', { className: "font-bold text-teal-700 text-lg" }, formatMoney(d.amt))))
                     ),
 
-                    // 5. 設定
                     tab === 'settings' && React.createElement('div', { className: "space-y-6 animate-zoom-in" },
                          React.createElement('div', { className: "bg-white p-5 rounded-2xl shadow-sm border border-stone-100" }, React.createElement('h3', { className: "font-bold mb-4 text-stone-700 flex items-center gap-2" }, React.createElement(Edit2, { size: 16 }), "基本設定"), React.createElement('div', { className: "space-y-4" }, React.createElement('div', null, React.createElement('label', { className: "text-xs text-stone-500 font-medium mb-1 block" }, "行程名稱"), React.createElement('input', { className: "w-full border-b border-stone-200 py-2 outline-none text-stone-700 focus:border-teal-500 transition-colors", defaultValue: project.name, onBlur: (e) => onUpdateProject({ name: e.target.value }) })), React.createElement('button', { onClick: () => { const url = window.location.href.split('?')[0] + '?pid=' + project.id; navigator.clipboard.writeText(url); showPopup("連結已複製"); }, className: "w-full py-3 bg-stone-50 hover:bg-stone-100 rounded-xl text-stone-600 text-sm font-medium flex justify-center items-center gap-2 transition-colors" }, React.createElement(Share2, { size: 16 }), "複製邀請連結"))),
                          React.createElement('div', { className: "bg-white p-5 rounded-2xl shadow-sm border border-stone-100" }, React.createElement('button', { onClick: onDeleteProject, className: "w-full py-3 text-red-500 text-sm font-bold hover:bg-red-50 rounded-xl transition-colors" }, "刪除此行程 (無法復原)"))
@@ -469,7 +648,7 @@
             );
         }
 
-        // --- 全新 Members Tab 組件 (整合 Notes 資料表與代辦事項) ---
+        // --- 全新 Members Tab 組件 (Expanded and Fixed) ---
         function MembersTab({ project, expenses, myId, supabase, showPopup }) {
             const [selectedMemberId, setSelectedMemberId] = useState(myId || project.members[0].id);
             const [localNote, setLocalNote] = useState('');
@@ -757,9 +936,10 @@
             );
         }
 
-        // --- ExpenseDetailModal (保持不變) ---
+        // --- ExpenseDetailModal (unchanged) ---
         function ExpenseDetailModal({ expense, project, onClose, onEdit, onDelete }) {
-            const category = CATEGORIES.find(c => c.id === expense.category_id) || CATEGORIES[5];
+             // ... (Code from previous response, unchanged)
+             const category = CATEGORIES.find(c => c.id === expense.category_id) || CATEGORIES[5];
             const payer = project.members.find(m => m.id === expense.payer_id)?.name || '未知';
             const currency = expense.original_currency || 'TWD';
             const originalAmount = expense.original_amount || expense.amount;
@@ -882,14 +1062,12 @@
             );
         }
 
-        // --- 新的 ExpenseItem 組件 (優化版面與功能) ---
-        function ExpenseItem({ expense, project, onClick, onEdit, onDelete }) {
+        // --- 新的 ExpenseItem 組件 (Added Draggable Support) ---
+        function ExpenseItem({ expense, project, onClick, onEdit, onDelete, draggable }) {
             const category = CATEGORIES.find(c => c.id === expense.category_id) || CATEGORIES[5];
             const payer = project.members.find(m => m.id === expense.payer_id)?.name || '未知';
             
-            // 幣別顯示邏輯：列表永遠顯示台幣，若為外幣則在下方顯示原幣
             const currencyCode = expense.original_currency || 'TWD';
-            // 主金額 = 台幣金額
             const displayAmount = formatMoney(expense.amount); 
 
             let splitText = '';
@@ -907,7 +1085,12 @@
 
             return React.createElement('div', { 
                 onClick: onClick,
-                className: "bg-white rounded-2xl shadow-sm border border-stone-100 relative group overflow-hidden pl-3 py-4 pr-4 transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer" 
+                draggable: draggable,
+                onDragStart: (e) => {
+                     e.dataTransfer.setData("text/plain", expense.id);
+                     e.dataTransfer.effectAllowed = "move";
+                },
+                className: `bg-white rounded-2xl shadow-sm border border-stone-100 relative group overflow-hidden pl-3 py-4 pr-4 transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}` 
             },
                 // 左側顏色條
                 React.createElement('div', { className: "absolute left-0 top-0 bottom-0 w-1.5", style: { backgroundColor: category.color } }),
@@ -952,11 +1135,13 @@
             );
         }
 
-        // --- 4. 記帳面板 (重構: 異動紀錄邏輯 + 預覽圖片) ---
+        // --- 4. 記帳面板 (Updated with Date Picker) ---
         function ExpenseModal({ project, onClose, onSubmit, supabase, defaultPayer, initialData }) {
             const [data, setData] = useState(initialData ? {
                 ...initialData,
-                custom_amounts: initialData.split_details || {}
+                custom_amounts: initialData.split_details || {},
+                // Initialize date from existing data or today
+                date: initialData.date || new Date().toISOString().split('T')[0]
             } : { 
                 title: '', 
                 amount: '', 
@@ -965,43 +1150,22 @@
                 payer_id: defaultPayer || project.members[0].id, 
                 split_type: 'equal', 
                 involved_ids: project.members.map(m=>m.id),
-                custom_amounts: {}
+                custom_amounts: {},
+                date: new Date().toISOString().split('T')[0] // Default to today
             });
             
             const [exchangeRate, setExchangeRate] = useState(initialData?.exchange_rate || 1);
             const [uploading, setUploading] = useState(false);
-            const [previewUrl, setPreviewUrl] = useState(null); // 新增預覽 URL
+            const [previewUrl, setPreviewUrl] = useState(null); 
 
-            // 當幣別改變時，自動切換預設匯率
-            const handleCurrencyChange = (curr) => {
-                setData({ ...data, currency: curr });
-                setExchangeRate(DEFAULT_RATES[curr] || 1);
-            };
-
-            const handleFile = async (e) => {
-                const file = e.target.files[0];
-                if(!file) return;
-                
-                // 立即預覽
-                const objectUrl = URL.createObjectURL(file);
-                setPreviewUrl(objectUrl);
-
-                setUploading(true);
-                try {
-                    const blob = await compressImage(file);
-                    const name = `receipt_${Date.now()}.jpg`;
-                    const { error } = await supabase.storage.from('receipts').upload(name, blob);
-                    if(!error) {
-                        const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(name);
-                        setData(p => ({ ...p, attachments: [{ type: 'image', url: publicUrl }] }));
-                    }
-                } catch(err) { console.error(err); alert("上傳失敗"); }
-                setUploading(false);
-            };
+            // ... (Currency and File Handlers Unchanged) ...
+            const handleCurrencyChange = (curr) => { setData({ ...data, currency: curr }); setExchangeRate(DEFAULT_RATES[curr] || 1); };
+            const handleFile = async (e) => { const file = e.target.files[0]; if(!file) return; const objectUrl = URL.createObjectURL(file); setPreviewUrl(objectUrl); setUploading(true); try { const blob = await compressImage(file); const name = `receipt_${Date.now()}.jpg`; const { error } = await supabase.storage.from('receipts').upload(name, blob); if(!error) { const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(name); setData(p => ({ ...p, attachments: [{ type: 'image', url: publicUrl }] })); } } catch(err) { console.error(err); alert("上傳失敗"); } setUploading(false); };
 
             const handleSubmit = () => {
                 if (!data.title || !data.title.trim()) { alert("請輸入項目名稱"); return; }
                 if (!data.amount) { alert("請輸入金額"); return; }
+                if (!data.date) { alert("請選擇日期"); return; }
 
                 const finalAmount = Math.round(Number(data.amount) * exchangeRate);
                 
@@ -1041,31 +1205,10 @@
                 onClose();
             }
             
-            // ... (Toggle Logic 省略，與之前相同)
-            const toggleInvolved = (id) => {
-                let newIds;
-                if(data.involved_ids.includes(id)) {
-                    newIds = data.involved_ids.filter(i => i !== id);
-                } else {
-                    newIds = [...data.involved_ids, id];
-                }
-                setData({ ...data, involved_ids: newIds });
-            };
-
-            const toggleAllInvolved = () => {
-                if(data.involved_ids.length === project.members.length) {
-                    setData({ ...data, involved_ids: [] });
-                } else {
-                    setData({ ...data, involved_ids: project.members.map(m=>m.id) });
-                }
-            };
-
-            const handleCustomAmountChange = (id, val) => {
-                setData(prev => ({
-                    ...prev,
-                    custom_amounts: { ...prev.custom_amounts, [id]: val }
-                }));
-            };
+            // ... (Helpers Unchanged) ...
+            const toggleInvolved = (id) => { let newIds; if(data.involved_ids.includes(id)) { newIds = data.involved_ids.filter(i => i !== id); } else { newIds = [...data.involved_ids, id]; } setData({ ...data, involved_ids: newIds }); };
+            const toggleAllInvolved = () => { if(data.involved_ids.length === project.members.length) { setData({ ...data, involved_ids: [] }); } else { setData({ ...data, involved_ids: project.members.map(m=>m.id) }); } };
+            const handleCustomAmountChange = (id, val) => { setData(prev => ({ ...prev, custom_amounts: { ...prev.custom_amounts, [id]: val } })); };
 
             const currentCustomSum = data.involved_ids.reduce((sum, id) => sum + Number(data.custom_amounts[id] || 0), 0);
             const targetAmount = Math.round(Number(data.amount) * exchangeRate);
@@ -1090,9 +1233,8 @@
                         React.createElement('button', { onClick: onClose, className: "p-2 bg-stone-100 rounded-full text-stone-500 hover:bg-stone-200" }, React.createElement(X, { size: 20 }))
                     ),
 
-                    // ... (金額、名稱、分類、付款人 UI 保持不變)
                      // 1. 金額與匯率區域
-                    React.createElement('div', { className: "bg-stone-50 p-4 rounded-2xl mb-6 border border-stone-100" },
+                    React.createElement('div', { className: "bg-stone-50 p-4 rounded-2xl mb-4 border border-stone-100" },
                         React.createElement('div', { className: "flex gap-4 mb-3" },
                             React.createElement('div', { className: "w-1/3" },
                                 React.createElement('label', { className: "text-xs font-bold text-stone-400 mb-1 block" }, "幣別"),
@@ -1126,6 +1268,17 @@
                                 `≈ TWD $${new Intl.NumberFormat('zh-TW').format(targetAmount)}`
                             )
                         )
+                    ),
+
+                    // 1.5 Date Picker (New)
+                    React.createElement('div', { className: "mb-6" },
+                        React.createElement('label', { className: "text-xs font-bold text-stone-400 mb-2 block" }, "消費日期"),
+                        React.createElement('input', {
+                            type: "date",
+                            value: data.date,
+                            onChange: e => setData({...data, date: e.target.value}),
+                            className: "w-full p-3 bg-stone-50 rounded-xl border border-stone-200 text-stone-700 font-bold outline-none focus:border-[#6B8E78]"
+                        })
                     ),
 
                     // 2. 項目名稱
