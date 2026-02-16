@@ -51,7 +51,7 @@
             Plus, Users, ArrowRight, Trash2, PieChart, List, DollarSign, Activity, Calendar, 
             ArrowLeft, Settings, Share2, Edit2, Check, X, Image as ImageIcon, Camera, RefreshCw,
             Crown, Upload, Info, Link as LinkIcon, AlertTriangle, UserCheck, Utensils, Bus, Bed, Ticket, ShoppingBag, Box,
-            Coffee, Beer, Music, Map, RotateCcw, UserPlus
+            Coffee, Beer, Music, Map, RotateCcw, UserPlus, Globe
         } from 'https://esm.sh/lucide-react@0.263.1';
         import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'https://esm.sh/recharts@2.7.2?deps=react@18.2.0,react-dom@18.2.0';
 
@@ -88,6 +88,9 @@
             { id: 'entertainment', name: '娛樂', color: '#FFB7B2', icon: Music },
             { id: 'other', name: '其他', color: '#B5B5B5', icon: Box },      
         ];
+
+        const COMMON_CURRENCIES = ['TWD', 'JPY', 'KRW', 'USD'];
+        const CURRENCY_SYMBOLS = { 'TWD': 'NT$', 'JPY': '¥', 'KRW': '₩', 'USD': '$' };
 
         const DEFAULT_IMG = 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80';
         const EMPTY_IMG = 'https://cdn-icons-png.flaticon.com/512/7486/7486744.png'; 
@@ -256,7 +259,7 @@
             return React.createElement('div', { className: "h-screen flex items-center justify-center text-center p-6" }, "請設定 Supabase");
         }
 
-        // --- 1. 專案列表 (反轉卡片特效：亮 -> 暗) ---
+        // --- 1. 專案列表 ---
         function ProjectList({ projects, onCreate, onSelect, onDelete, onUpdate, supabase }) {
             const [modalMode, setModalMode] = useState(null); 
             const [targetProject, setTargetProject] = useState(null);
@@ -302,12 +305,12 @@
                                     onClick: () => onSelect(p), 
                                     className: "relative w-full h-64 rounded-3xl overflow-hidden shadow-md cursor-pointer group hover:shadow-xl transition-all duration-300",
                                 },
-                                    // 背景圖 (保持原樣，不放大)
+                                    // 背景圖
                                     React.createElement('div', { 
                                         className: "absolute inset-0 bg-cover bg-center",
                                         style: { backgroundImage: `url(${bg})` }
                                     }),
-                                    // 反轉漸層遮罩：預設幾乎透明 (只留底部一點點陰影給文字)，Hover 時變深
+                                    // 反轉漸層遮罩
                                     React.createElement('div', { className: "absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent transition-all duration-500 group-hover:from-black/90 group-hover:via-black/50 group-hover:to-black/30" }),
                                     
                                     React.createElement('div', { className: "absolute inset-0 p-6 flex flex-col justify-between z-10" },
@@ -323,7 +326,6 @@
                                         ),
                                         // Bottom
                                         React.createElement('div', null,
-                                            // 標題在 Hover 時會更亮/更顯眼
                                             React.createElement('h3', { className: "text-white font-bold text-2xl mb-3 drop-shadow-md leading-tight truncate transition-colors" }, p.name),
                                             
                                             React.createElement('div', { className: "flex items-center justify-between" },
@@ -365,7 +367,7 @@
             );
         }
 
-        // --- 2. 身分選擇視窗 (優化: 歡迎標題 / 新增不在名單 / 排版調整) ---
+        // --- 2. 身分選擇視窗 ---
         function MemberSelectModal({ project, onClose, onConfirm, onJoinNew }) {
             const [isJoining, setIsJoining] = useState(false);
             const [newName, setNewName] = useState('');
@@ -378,16 +380,12 @@
                     onClick: e => e.stopPropagation(), 
                     className: "clean-modal w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]" 
                 },
-                    // Header Area
                     React.createElement('div', { className: "relative text-center mb-6 shrink-0" },
-                        // Title Changes
                         React.createElement('h2', { className: "text-xl font-bold text-[#6B8E78] mb-1 tracking-wide" }, isJoining ? "加入旅程" : "歡迎加入旅程!"),
                         React.createElement('p', { className: "text-2xl font-bold text-stone-800" }, isJoining ? "請輸入您的暱稱" : "請問您是哪位旅伴？")
                     ),
 
-                    // Content Area
                     isJoining ? (
-                        // Join New Member Form
                         React.createElement('div', { className: "flex-1 flex flex-col gap-4 animate-fadeIn" },
                             React.createElement('input', {
                                 autoFocus: true,
@@ -407,26 +405,21 @@
                             }, "返回清單")
                         )
                     ) : (
-                        // Existing Member List
                         React.createElement('div', { className: "flex-1 overflow-y-auto pr-1" },
                             React.createElement('div', { className: "grid grid-cols-2 gap-3 pb-2" },
                                 project.members.map((m, index) => 
                                     React.createElement('button', { 
                                         key: m.id, 
                                         onClick: () => onConfirm(m.id),
-                                        className: "flex flex-col items-center p-4 rounded-2xl bg-stone-50 border border-stone-100 hover:border-[#6B8E78] hover:bg-green-50/50 transition-all group relative overflow-hidden"
+                                        className: "flex flex-col items-center p-3 rounded-2xl bg-stone-50 border border-stone-100 hover:border-[#6B8E78] hover:bg-green-50/50 transition-all group relative overflow-hidden shadow-sm"
                                     },
-                                        // 1. Role (Top)
-                                        React.createElement('span', { className: "text-xs text-stone-400 mb-2 font-medium group-hover:text-[#6B8E78]" }, index === 0 ? "👑 主辦人" : `🎒 旅伴 ${index}`),
-                                        
-                                        // 2. Icon (Middle)
-                                        React.createElement('div', { className: "w-12 h-12 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-600 font-bold mb-2 group-hover:bg-[#6B8E78] group-hover:border-transparent group-hover:text-white transition-all text-lg shadow-sm" }, m.name[0]),
-                                        
-                                        // 3. Name (Bottom)
+                                        React.createElement('span', { className: "text-xs text-stone-400 font-medium group-hover:text-[#6B8E78]" }, index === 0 ? "👑 主辦人" : `🎒 旅伴 ${index}`),
+                                        React.createElement('div', { className: "w-full h-px bg-stone-300/50 my-2" }),
+                                        React.createElement('div', { className: "w-12 h-12 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-600 font-bold group-hover:bg-[#6B8E78] group-hover:border-transparent group-hover:text-white transition-all text-lg shadow-sm" }, m.name[0]),
+                                        React.createElement('div', { className: "w-full h-px bg-stone-300/50 my-2" }),
                                         React.createElement('span', { className: "text-sm font-bold text-stone-700" }, m.name)
                                     )
                                 ),
-                                // "Not on list?" Button
                                 React.createElement('button', {
                                     onClick: () => setIsJoining(true),
                                     className: "flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed border-stone-300 hover:border-[#6B8E78] hover:bg-stone-50 transition-all group"
@@ -629,10 +622,17 @@
             );
         }
 
-        // --- 4. 記帳面板 (維持不變) ---
+        // --- 4. 記帳面板 (全新 LightSplit 風格重構) ---
         function ExpenseModal({ project, onClose, onSubmit, supabase, defaultPayer }) {
-            // ... (省略內部邏輯，保持不變)
-            const [data, setData] = useState({ title: '', amount: '', category_id: 'food', payer_id: defaultPayer || project.members[0].id, split_type: 'equal', involved_ids: project.members.map(m=>m.id) });
+            const [data, setData] = useState({ 
+                title: '', 
+                amount: '', 
+                currency: 'TWD',
+                category_id: 'food', 
+                payer_id: defaultPayer || project.members[0].id, 
+                split_type: 'equal', 
+                involved_ids: project.members.map(m=>m.id) 
+            });
             const [uploading, setUploading] = useState(false);
 
             const handleFile = async (e) => {
@@ -659,89 +659,169 @@
                 onSubmit(finalData);
                 onClose();
             }
+            
+            // 處理分帳人選的切換
+            const toggleInvolved = (id) => {
+                let newIds;
+                if(data.involved_ids.includes(id)) {
+                    newIds = data.involved_ids.filter(i => i !== id);
+                } else {
+                    newIds = [...data.involved_ids, id];
+                }
+                setData({ ...data, involved_ids: newIds });
+            };
+
+            const toggleAllInvolved = () => {
+                if(data.involved_ids.length === project.members.length) {
+                    setData({ ...data, involved_ids: [] });
+                } else {
+                    setData({ ...data, involved_ids: project.members.map(m=>m.id) });
+                }
+            };
 
             return React.createElement('div', { 
-                onClick: onClose, // 點擊外部關閉
-                className: "fixed inset-0 bg-black/50 z-[60] flex items-end md:items-center justify-center backdrop-blur-sm" 
+                onClick: onClose, 
+                className: "fixed inset-0 bg-black/60 z-[60] flex items-end md:items-center justify-center backdrop-blur-sm" 
             },
                 React.createElement('div', { 
-                    onClick: e => e.stopPropagation(), // 阻止冒泡
-                    className: "clean-modal w-full max-w-sm rounded-t-[2.5rem] md:rounded-[2.5rem] p-6 animate-fade-in max-h-[90vh] overflow-y-auto shadow-2xl relative" 
+                    onClick: e => e.stopPropagation(), 
+                    className: "bg-white w-full max-w-md rounded-t-[2.5rem] md:rounded-[2.5rem] p-6 animate-fade-in shadow-2xl relative max-h-[90vh] overflow-y-auto flex flex-col" 
                 },
-                    React.createElement('div', { className: "w-16 h-1.5 bg-stone-200/50 rounded-full mx-auto mb-6 md:hidden" }),
+                    // Drag Handle (Mobile)
+                    React.createElement('div', { className: "w-12 h-1.5 bg-stone-200/60 rounded-full mx-auto mb-6 md:hidden" }),
 
-                    // 1. 金額輸入
-                    React.createElement('div', { className: "text-center mb-6" },
-                         React.createElement('label', { className: "text-stone-400 text-xs font-bold mb-1 block uppercase tracking-wide" }, "AMOUNT"),
-                         React.createElement('div', { className: "flex items-center justify-center gap-2" },
-                            React.createElement('span', { className: "text-3xl text-stone-300 font-light" }, "$"),
-                            React.createElement('input', { 
-                                className: "text-5xl font-bold text-stone-800 outline-none bg-transparent w-48 text-center placeholder-stone-200", 
-                                type: "number", 
-                                placeholder: "0", 
-                                value: data.amount, 
-                                autoFocus: true,
-                                onChange: e=>setData({...data, amount: Number(e.target.value)}) 
-                            })
-                         )
+                    // Header
+                    React.createElement('div', { className: "flex justify-between items-center mb-6" },
+                        React.createElement('h2', { className: "text-xl font-bold text-stone-800" }, "記一筆"),
+                        React.createElement('button', { onClick: onClose, className: "p-2 bg-stone-100 rounded-full text-stone-500 hover:bg-stone-200" }, React.createElement(X, { size: 20 }))
                     ),
 
-                    // 2. 分類
-                    React.createElement('div', { className: "mb-8 px-2" },
-                        React.createElement('div', { className: "grid grid-cols-4 gap-4" }, 
-                            CATEGORIES.map(c => {
-                                const isSelected = data.category_id === c.id;
-                                return React.createElement('button', { 
-                                    key: c.id, 
-                                    onClick: ()=>setData({...data, category_id: c.id}), 
-                                    className: `flex flex-col items-center justify-center p-3 rounded-2xl transition-all aspect-square ${isSelected ? 'bg-stone-800 text-white shadow-xl scale-110' : 'bg-white text-stone-400 shadow-sm hover:bg-stone-50'}` 
-                                }, 
-                                    React.createElement(c.icon, { size: 28, className: "mb-1", strokeWidth: isSelected ? 2.5 : 2 }),
-                                    React.createElement('span', { className: "text-[10px] font-bold mt-1" }, c.name)
-                                )
-                            })
-                        )
-                    ),
-
-                    // 3. 詳細資訊
-                    React.createElement('div', { className: "space-y-0 bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden" },
-                        React.createElement('div', { className: "flex items-center gap-3 p-4 border-b border-stone-100 hover:bg-stone-50 transition-colors" },
-                            React.createElement(Edit2, { size: 18, className: "text-stone-400" }),
-                            React.createElement('input', { className: "flex-1 outline-none text-stone-700 bg-transparent text-sm font-medium", placeholder: "備註 (選填，預設為分類名)", value: data.title, onChange: e=>setData({...data, title: e.target.value}) })
-                        ),
-                        React.createElement('div', { className: "flex items-center gap-3 p-4 border-b border-stone-100 hover:bg-stone-50 transition-colors" },
-                            React.createElement(UserCheck, { size: 18, className: "text-stone-400" }),
-                            React.createElement('div', { className: "flex-1 flex items-center gap-2 overflow-x-auto scrollbar-hide" },
-                                project.members.map(m => React.createElement('button', {
-                                    key: m.id,
-                                    onClick: () => setData({...data, payer_id: m.id}),
-                                    className: `px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${data.payer_id === m.id ? 'bg-[#6B8E78] text-white shadow-md' : 'bg-stone-100 text-stone-500'}`
-                                }, m.name))
+                    // 1. Currency & Amount (Hero Section)
+                    React.createElement('div', { className: "flex flex-col items-center mb-8" },
+                        // Currency Pills
+                        React.createElement('div', { className: "flex gap-2 mb-4" },
+                            COMMON_CURRENCIES.map(c => 
+                                React.createElement('button', {
+                                    key: c,
+                                    onClick: () => setData({...data, currency: c}),
+                                    className: `px-3 py-1 rounded-full text-xs font-bold transition-all ${data.currency === c ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-400 hover:bg-stone-200'}`
+                                }, c)
                             )
                         ),
-                        React.createElement('div', { className: "flex items-center gap-3 p-4 hover:bg-stone-50 transition-colors" },
-                             React.createElement(Camera, { size: 18, className: "text-stone-400" }),
-                             React.createElement('label', { className: "text-xs text-stone-500 flex-1 cursor-pointer hover:text-stone-800 transition-colors font-medium flex items-center justify-between" },
-                                React.createElement('span', null, uploading ? "上傳中..." : data.attachments ? "已附加收據 (點擊更換)" : "新增收據照片"),
-                                data.attachments && React.createElement(Check, { size: 14, className: "text-green-500" }),
-                                React.createElement('input', { type: "file", className: "hidden", onChange: handleFile, accept: "image/*" })
-                             )
+                        // Big Input
+                        React.createElement('div', { className: "relative flex items-center justify-center w-full" },
+                            React.createElement('span', { className: "text-4xl font-bold text-stone-300 mr-2 pb-2" }, CURRENCY_SYMBOLS[data.currency]),
+                            React.createElement('input', { 
+                                type: "number", 
+                                value: data.amount, 
+                                onChange: e => setData({...data, amount: Number(e.target.value)}),
+                                placeholder: "0", 
+                                autoFocus: true,
+                                className: "text-6xl font-bold text-stone-800 text-center bg-transparent outline-none w-2/3 placeholder-stone-200"
+                            })
                         )
                     ),
 
-                    // 底部按鈕
-                    React.createElement('div', { className: "flex gap-4 mt-8" },
-                        React.createElement('button', { onClick: onClose, className: "flex-1 py-4 text-stone-400 font-bold hover:text-stone-600 transition-colors" }, "取消"),
-                        React.createElement('button', { 
-                            onClick: handleSubmit, 
-                            className: "flex-[2] py-4 bg-[#6B8E78] text-white font-bold rounded-2xl shadow-xl shadow-teal-700/20 hover:scale-[1.02] active:scale-95 transition-all text-lg" 
-                        }, "完成")
-                    )
+                    // 2. Title Input
+                    React.createElement('div', { className: "mb-8 px-2" },
+                        React.createElement('div', { className: "border-b-2 border-stone-100 focus-within:border-[#6B8E78] transition-colors flex items-center py-2 gap-3" },
+                            React.createElement(Edit2, { className: "text-stone-400", size: 20 }),
+                            React.createElement('input', { 
+                                type: "text", 
+                                value: data.title, 
+                                onChange: e => setData({...data, title: e.target.value}),
+                                placeholder: "項目名稱 (必填)", 
+                                className: "bg-transparent outline-none text-lg font-bold text-stone-700 w-full placeholder-stone-300"
+                            }),
+                            // Small attachment icon
+                            React.createElement('label', { className: "cursor-pointer text-stone-300 hover:text-[#6B8E78] transition-colors relative" },
+                                uploading ? React.createElement(RefreshCw, { size: 20, className: "animate-spin" }) : React.createElement(Camera, { size: 20 }),
+                                React.createElement('input', { type: "file", className: "hidden", onChange: handleFile, accept: "image/*" }),
+                                data.attachments && React.createElement('span', { className: "absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" })
+                            )
+                        )
+                    ),
+
+                    // 3. Category (Horizontal Scroll)
+                    React.createElement('div', { className: "mb-8" },
+                        React.createElement('label', { className: "text-xs font-bold text-stone-400 mb-3 block px-2" }, "分類"),
+                        React.createElement('div', { className: "flex gap-4 overflow-x-auto pb-4 px-2 scrollbar-hide snap-x" },
+                            CATEGORIES.map(cat => 
+                                React.createElement('button', { 
+                                    key: cat.id, 
+                                    onClick: () => setData({...data, category_id: cat.id}),
+                                    className: `flex flex-col items-center gap-2 min-w-[70px] snap-center transition-transform ${data.category_id === cat.id ? 'scale-110' : 'opacity-60 hover:opacity-100'}`
+                                },
+                                    React.createElement('div', { 
+                                        className: `w-14 h-14 rounded-full flex items-center justify-center shadow-sm text-white transition-all ${data.category_id === cat.id ? 'shadow-md ring-4 ring-stone-100' : ''}`,
+                                        style: { backgroundColor: cat.color }
+                                    },
+                                        React.createElement(cat.icon, { size: 24, strokeWidth: 2.5 })
+                                    ),
+                                    React.createElement('span', { className: `text-xs font-bold ${data.category_id === cat.id ? 'text-stone-800' : 'text-stone-400'}` }, cat.name)
+                                )
+                            )
+                        )
+                    ),
+
+                    // 4. Payer & Split (Horizontal Lists)
+                    React.createElement('div', { className: "space-y-6 mb-8 px-2" },
+                        
+                        // Payer
+                        React.createElement('div', null,
+                             React.createElement('div', { className: "flex justify-between items-center mb-3" },
+                                React.createElement('label', { className: "text-xs font-bold text-stone-400" }, "誰先付的？"),
+                                React.createElement('span', { className: "text-xs font-bold text-[#6B8E78]" }, project.members.find(m=>m.id===data.payer_id)?.name)
+                             ),
+                             React.createElement('div', { className: "flex gap-3 overflow-x-auto pb-2 scrollbar-hide" },
+                                project.members.map(m => 
+                                    React.createElement('button', {
+                                        key: m.id,
+                                        onClick: () => setData({...data, payer_id: m.id}),
+                                        className: `flex items-center gap-2 px-4 py-2 rounded-full border transition-all whitespace-nowrap ${data.payer_id === m.id ? 'bg-stone-800 text-white border-stone-800 shadow-md' : 'bg-white text-stone-500 border-stone-200'}`
+                                    },
+                                        React.createElement('div', { className: `w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${data.payer_id === m.id ? 'bg-white text-stone-800' : 'bg-stone-200 text-stone-500'}` }, m.name[0]),
+                                        React.createElement('span', { className: "text-xs font-bold" }, m.name)
+                                    )
+                                )
+                             )
+                        ),
+
+                        // Split
+                        React.createElement('div', null,
+                            React.createElement('div', { className: "flex justify-between items-center mb-3" },
+                                React.createElement('label', { className: "text-xs font-bold text-stone-400" }, "分給誰？"),
+                                React.createElement('button', { onClick: toggleAllInvolved, className: "text-xs font-bold text-stone-400 hover:text-[#6B8E78]" }, 
+                                    data.involved_ids.length === project.members.length ? "取消全選" : "全選"
+                                )
+                            ),
+                            React.createElement('div', { className: "flex gap-3 overflow-x-auto pb-2 scrollbar-hide" },
+                                project.members.map(m => {
+                                    const isSelected = data.involved_ids.includes(m.id);
+                                    return React.createElement('button', {
+                                        key: m.id,
+                                        onClick: () => toggleInvolved(m.id),
+                                        className: `flex flex-col items-center gap-1 min-w-[50px] transition-all group ${isSelected ? 'opacity-100' : 'opacity-50 hover:opacity-80'}`
+                                    },
+                                        React.createElement('div', { className: `w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${isSelected ? 'bg-[#6B8E78] border-[#6B8E78] text-white shadow-sm' : 'bg-stone-50 border-stone-200 text-stone-400'}` }, m.name[0]),
+                                        React.createElement('span', { className: "text-[10px] font-bold text-stone-600 truncate w-full text-center" }, m.name)
+                                    )
+                                })
+                            )
+                        )
+                    ),
+
+                    // Submit Button
+                    React.createElement('button', { 
+                        onClick: handleSubmit,
+                        disabled: !data.title || !data.amount || uploading,
+                        className: "w-full py-4 bg-[#6B8E78] text-white font-bold rounded-2xl shadow-xl shadow-[#6B8E78]/20 text-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 mt-auto"
+                    }, uploading ? "處理中..." : "完成")
                 )
             );
         }
 
-        // --- 共用組件: 確認視窗 ---
+        // --- 共用組件 ---
         function ConfirmModal({ title, message, onClose, onConfirm }) {
             return React.createElement('div', { 
                 onClick: onClose, // 點擊外部關閉
